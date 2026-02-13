@@ -1,7 +1,5 @@
 """Telegram Bot for VDI Taxi — user notifications + admin commands.
 
-[BLOCKED: needs TELEGRAM_BOT_TOKEN env var to run]
-
 User commands:
   /start — link Telegram account to VDI user
   /status — show current session and slot info
@@ -32,8 +30,11 @@ _bot_app = None
 
 
 def get_token() -> str:
-    """Get bot token from env. Raises if not set."""
-    token = os.getenv("VDI_TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+    """Get bot token from settings or env."""
+    from backend.config import settings
+    token = settings.telegram_bot_token
+    if not token:
+        token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not token:
         raise RuntimeError(
             "TELEGRAM_BOT_TOKEN not set. Get one from @BotFather."
@@ -301,7 +302,7 @@ async def _cmd_kick(update, context) -> None:
 
 
 async def _cmd_reboot(update, context) -> None:
-    """Reboot a VM (admin only). [BLOCKED: needs SSH access]"""
+    """Reboot a VM via SSH (admin only)."""
     if not await _require_admin(update):
         return
 
@@ -311,10 +312,27 @@ async def _cmd_reboot(update, context) -> None:
         return
 
     vm_id = args[0]
-    await update.message.reply_text(
-        f"⏳ Перезагрузка {vm_id}...\n"
-        f"[BLOCKED: SSH доступ к VM не настроен]"
-    )
+    await update.message.reply_text(f"⏳ Перезагрузка {vm_id}...")
+
+    from backend.config import settings
+    if not settings.timeweb_host:
+        await update.message.reply_text("❌ SSH не настроен (TIMEWEB_HOST пуст)")
+        return
+
+    try:
+        import paramiko
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(
+            settings.timeweb_host,
+            username=settings.timeweb_ssh_user,
+            password=settings.timeweb_ssh_password,
+        )
+        ssh.exec_command(f"docker restart {vm_id}")
+        ssh.close()
+        await update.message.reply_text(f"✅ {vm_id} перезагружается.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
 
 
 async def _cmd_stats(update, context) -> None:

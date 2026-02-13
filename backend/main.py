@@ -1,5 +1,8 @@
 """VDI Taxi — FastAPI backend entry-point."""
 
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,15 +18,42 @@ from backend.sessions import router as sessions_router
 from backend.health import router as health_router
 from backend.websocket import router as ws_router
 
+logger = logging.getLogger(__name__)
+
 # Create tables on startup
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="VDI Taxi", version="0.1.0")
 
-# CORS — allow Vite dev server
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start Telegram bot on app startup, stop on shutdown."""
+    from backend.config import settings
+    if settings.telegram_bot_token:
+        try:
+            from backend.telegram_bot import start_bot, stop_bot
+            await start_bot()
+            logger.info("Telegram bot started")
+        except Exception as e:
+            logger.warning("Telegram bot failed to start: %s", e)
+    else:
+        logger.info("Telegram bot skipped (no token)")
+
+    yield
+
+    # Shutdown
+    try:
+        from backend.telegram_bot import stop_bot
+        await stop_bot()
+    except Exception:
+        pass
+
+
+app = FastAPI(title="VDI Taxi", version="0.1.0", lifespan=lifespan)
+
+# CORS — allow Vite dev server + production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://localhost:5173"],
+    allow_origins=["http://localhost:8080", "http://localhost:5173", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

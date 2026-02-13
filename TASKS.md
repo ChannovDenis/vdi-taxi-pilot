@@ -352,7 +352,7 @@
 
 ---
 
-### S2-4. Session Dump скрипт [DONE] (SSH transfer BLOCKED: нужен SSH-ключ к VM)
+### S2-4. Session Dump скрипт [DONE — UNBLOCKED]
 
 | | |
 |---|---|
@@ -369,7 +369,7 @@
 
 ---
 
-### S2-5. Telegram Bot: базовый [DONE — код готов, BLOCKED: нужен токен]
+### S2-5. Telegram Bot: базовый [DONE — UNBLOCKED]
 
 | | |
 |---|---|
@@ -388,7 +388,7 @@
 
 ---
 
-### S2-6. Telegram Bot: admin-команды [DONE — код готов, BLOCKED: нужен токен]
+### S2-6. Telegram Bot: admin-команды [DONE — UNBLOCKED]
 
 | | |
 |---|---|
@@ -403,7 +403,7 @@
 
 ---
 
-### S2-7. Admin Health: реальные данные VM и сервисов [DONE] (SSH мониторинг BLOCKED: нужен SSH-ключ)
+### S2-7. Admin Health: реальные данные VM и сервисов [DONE — UNBLOCKED]
 
 | | |
 |---|---|

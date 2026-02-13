@@ -14,8 +14,14 @@ class Settings(BaseSettings):
 
     # Telegram
     telegram_bot_token: str = ""
+    telegram_admin_chat_id: str = ""
 
-    model_config = {"env_prefix": "VDI_"}
+    # Timeweb SSH
+    timeweb_host: str = ""
+    timeweb_ssh_user: str = "root"
+    timeweb_ssh_password: str = ""
+
+    model_config = {"env_prefix": "VDI_", "env_file": ".env", "extra": "ignore"}
 
 
 settings = Settings()
