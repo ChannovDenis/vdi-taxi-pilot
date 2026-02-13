@@ -561,7 +561,7 @@
 
 ---
 
-### S3-8. Deploy на Timeweb Cloud
+### S3-8. Deploy на Timeweb Cloud [DONE]
 
 | | |
 |---|---|
