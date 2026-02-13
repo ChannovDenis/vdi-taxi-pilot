@@ -1,0 +1,110 @@
+version: "3.8"
+
+services:
+  # --- Nginx (frontend + reverse proxy) ---
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - frontend-build:/usr/share/nginx/html:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # --- FastAPI backend (gunicorn) ---
+  api:
+    build: .
+    command: >
+      uvicorn backend.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 2
+    volumes:
+      - sqlite-data:/app/data
+      - dump-storage:/app/dumps
+    environment:
+      VDI_DATABASE_URL: "sqlite:////app/data/vdi_taxi.db"
+      VDI_JWT_SECRET: "${VDI_JWT_SECRET}"
+      VDI_GUACAMOLE_URL: "http://guacamole:8080/guacamole"
+      VDI_GUACAMOLE_ADMIN_USER: "${GUAC_ADMIN_USER:-guacadmin}"
+      VDI_GUACAMOLE_ADMIN_PASS: "${GUAC_ADMIN_PASS:-guacadmin}"
+      VDI_TELEGRAM_BOT_TOKEN: "${VDI_TELEGRAM_BOT_TOKEN}"
+      VDI_TELEGRAM_ADMIN_CHAT_ID: "${VDI_TELEGRAM_ADMIN_CHAT_ID}"
+      VDI_TIMEWEB_HOST: "${VDI_TIMEWEB_HOST}"
+      VDI_TIMEWEB_SSH_USER: "${VDI_TIMEWEB_SSH_USER:-root}"
+      VDI_TIMEWEB_SSH_PASSWORD: "${VDI_TIMEWEB_SSH_PASSWORD}"
+      VDI_DUMP_STORAGE: "/app/dumps"
+    depends_on:
+      guacamole:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # --- Apache Guacamole ---
+  guacamole:
+    image: guacamole/guacamole:1.5.5
+    environment:
+      GUACD_HOSTNAME: guacd
+      GUACD_PORT: 4822
+      POSTGRES_HOSTNAME: guac-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: guacamole_db
+      POSTGRES_USER: guacamole
+      POSTGRES_PASSWORD: "${GUAC_DB_PASS:-guac_secret}"
+    depends_on:
+      guac-db:
+        condition: service_healthy
+      guacd:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/guacamole/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  # --- guacd ---
+  guacd:
+    image: guacamole/guacd:1.5.5
+    restart: unless-stopped
+
+  # --- PostgreSQL for Guacamole ---
+  guac-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: guacamole_db
+      POSTGRES_USER: guacamole
+      POSTGRES_PASSWORD: "${GUAC_DB_PASS:-guac_secret}"
+    volumes:
+      - guac-pg-data:/var/lib/postgresql/data
+      - ./docker/guac-initdb:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guacamole -d guacamole_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # --- Frontend builder (one-shot) ---
+  frontend-builder:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - frontend-build:/app/dist
+    command: sh -c "npm ci && npm run build"
+    profiles:
+      - build
+
+volumes:
+  sqlite-data:
+  guac-pg-data:
+  dump-storage:
+  frontend-build:

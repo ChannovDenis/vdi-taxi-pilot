@@ -494,7 +494,7 @@
 
 ---
 
-### S3-4. Docker Compose: полный production стек
+### S3-4. Docker Compose: полный production стек [DONE]
 
 | | |
 |---|---|
