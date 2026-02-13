@@ -5,12 +5,23 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Clock, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface SlotFromApi {
   id: string;
   service_name: string;
+}
+
+interface SessionHistoryItem {
+  id: number;
+  slot_id: string;
+  service_name: string;
+  started_at: string;
+  ended_at: string | null;
+  duration_min: number;
+  end_reason: string | null;
+  dump_path: string | null;
 }
 
 interface ProfileData {
@@ -51,6 +62,12 @@ const ProfileScreen = () => {
   const { data: slots = [] } = useQuery<SlotFromApi[]>({
     queryKey: ["slots"],
     queryFn: () => api.get<SlotFromApi[]>("/slots"),
+  });
+
+  // Fetch session history
+  const { data: sessionHistory = [] } = useQuery<SessionHistoryItem[]>({
+    queryKey: ["profile-sessions"],
+    queryFn: () => api.get<SessionHistoryItem[]>("/profile/sessions"),
   });
 
   // Local state for editing (initialized from profile when available)
@@ -144,9 +161,42 @@ const ProfileScreen = () => {
           </Button>
         </section>
 
+        {/* Session History */}
+        <section>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">История сессий</h2>
+          {sessionHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Нет завершённых сессий</p>
+          ) : (
+            <div className="space-y-2">
+              {sessionHistory.map((s) => {
+                const date = new Date(s.started_at);
+                const dateStr = date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+                const timeStr = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+                return (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg border bg-card px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{s.service_name}</p>
+                        <p className="text-xs text-muted-foreground">{dateStr}, {timeStr} — {s.duration_min} мин</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {s.dump_path && (
+                        <FileText className="h-4 w-4 text-muted-foreground" title="Дамп доступен" />
+                      )}
+                      <span className="text-xs text-muted-foreground">{s.end_reason === "manual" ? "Завершено" : s.end_reason === "kicked" ? "Отключён" : s.end_reason ?? ""}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         {/* Training */}
         <section>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">📚 Обучение</h2>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">Обучение</h2>
           <div className="flex gap-4 overflow-x-auto pb-2">
             {videos.map((v) => (
               <button
