@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageCircle, Smartphone, PlayCircle } from "lucide-react";
 
 const TG_REGEX = /^@[a-zA-Z0-9_]{5,32}$/;
 
@@ -121,23 +121,39 @@ const OnboardingScreen = () => {
     },
   ];
 
+  const stepIcons = [
+    <MessageCircle className="h-5 w-5" />,
+    <Smartphone className="h-5 w-5" />,
+    <PlayCircle className="h-5 w-5" />,
+  ];
+
   const current = steps[step];
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
-        {/* Stepper */}
-        <div className="flex items-center justify-center gap-2">
-          {steps.map((_, i) => (
-            <span
-              key={i}
-              className="h-2.5 w-2.5 rounded-full transition-colors"
-              style={{ backgroundColor: i === step ? "hsl(var(--primary))" : "hsl(var(--muted))" }}
-            />
-          ))}
+        {/* Progress bar */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            {steps.map((s, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors"
+                  style={{
+                    backgroundColor: i <= step ? "hsl(var(--primary))" : "hsl(var(--muted))",
+                    color: i <= step ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                  }}
+                >
+                  {stepIcons[i]}
+                </span>
+                {i < steps.length - 1 && (
+                  <div className="h-0.5 w-12 sm:w-20 rounded-full transition-colors" style={{ backgroundColor: i < step ? "hsl(var(--primary))" : "hsl(var(--muted))" }} />
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs text-muted-foreground">Шаг {step + 1} из 3</p>
         </div>
-
-        <p className="text-center text-xs text-muted-foreground">Шаг {step + 1}/3</p>
 
         <h1 className="text-center text-2xl font-bold text-foreground">{current.title}</h1>
 
