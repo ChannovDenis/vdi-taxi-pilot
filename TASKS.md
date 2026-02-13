@@ -545,7 +545,7 @@
 
 ---
 
-### S3-7. PWA: Service Worker + push
+### S3-7. PWA: Service Worker + push [DONE]
 
 | | |
 |---|---|
