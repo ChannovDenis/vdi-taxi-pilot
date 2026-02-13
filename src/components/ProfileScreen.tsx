@@ -31,12 +31,15 @@ const videos = [
   { title: "Veo + Flow: создание видео", duration: "1 мин" },
 ];
 
+const TG_REGEX = /^@[a-zA-Z0-9_]{5,32}$/;
+
 const ProfileScreen = () => {
   const navigate = useNavigate();
   const onBack = () => navigate("/dashboard");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [videoModal, setVideoModal] = useState<string | null>(null);
+  const [tgError, setTgError] = useState("");
 
   // Fetch profile from API
   const { data: profile } = useQuery<ProfileData>({
@@ -78,6 +81,15 @@ const ProfileScreen = () => {
   };
 
   const handleSaveTelegram = () => {
+    if (!telegram) {
+      setTgError("Введите Telegram username");
+      return;
+    }
+    if (!TG_REGEX.test(telegram)) {
+      setTgError("Формат: @username (5–32 символа, буквы, цифры, _)");
+      return;
+    }
+    setTgError("");
     saveMutation.mutate({ telegram_id: telegram });
     setLocalTelegram(null);
   };
@@ -106,8 +118,9 @@ const ProfileScreen = () => {
                 className="mt-1 flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 placeholder="@username"
                 value={telegram}
-                onChange={(e) => setLocalTelegram(e.target.value)}
+                onChange={(e) => { setLocalTelegram(e.target.value); setTgError(""); }}
               />
+              {tgError && <p className="mt-1 text-xs text-destructive">{tgError}</p>}
             </div>
             <Button size="sm" onClick={handleSaveTelegram} disabled={saveMutation.isPending}>
               Сохранить

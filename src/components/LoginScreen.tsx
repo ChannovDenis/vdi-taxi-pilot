@@ -1,11 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useAuth } from "@/context/AuthContext";
 import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Car } from "lucide-react";
+
+const loginSchema = z.object({
+  username: z.string().min(1, "Введите логин"),
+  password: z.string().min(4, "Пароль минимум 4 символа"),
+  totp_code: z.string().optional(),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 interface LoginResponse {
   token: string;
@@ -22,29 +33,21 @@ interface LoginResponse {
 const LoginScreen = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [error, setError] = useState("");
+  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [otp, setOtp] = useState("");
 
-  const handleLogin = async () => {
-    setError("");
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { username: "", password: "", totp_code: "" },
+  });
 
-    if (!username.trim()) {
-      setError("Введите логин");
-      return;
-    }
-    if (!password) {
-      setError("Введите пароль");
-      return;
-    }
-
+  const onSubmit = async (values: LoginFormValues) => {
+    setApiError("");
     setLoading(true);
     try {
       const data = await api.post<LoginResponse>("/auth/login", {
-        username: username.trim(),
-        password,
+        ...values,
         totp_code: otp,
       });
 
@@ -57,17 +60,13 @@ const LoginScreen = () => {
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setApiError(err.message);
       } else {
-        setError("Ошибка соединения с сервером");
+        setApiError("Ошибка соединения с сервером");
       }
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !loading) handleLogin();
   };
 
   return (
@@ -81,31 +80,31 @@ const LoginScreen = () => {
           <p className="text-sm text-muted-foreground">Портал бронирования AI-сервисов</p>
         </div>
 
-        <div className="space-y-4 rounded-xl border bg-card p-6" onKeyDown={handleKeyDown}>
-          {error && (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 rounded-xl border bg-card p-6">
+          {apiError && (
             <div className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
+              {apiError}
             </div>
           )}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground">Логин</label>
             <Input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              {...register("username")}
               placeholder="admin"
               className="bg-background"
               autoFocus
             />
+            {errors.username && <p className="text-xs text-destructive">{errors.username.message}</p>}
           </div>
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground">Пароль</label>
             <Input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              {...register("password")}
               placeholder="••••••••"
               className="bg-background"
             />
+            {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground">Код 2FA</label>
@@ -120,10 +119,10 @@ const LoginScreen = () => {
               </InputOTPGroup>
             </InputOTP>
           </div>
-          <Button className="w-full" onClick={handleLogin} disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Вход..." : "Войти"}
           </Button>
-        </div>
+        </form>
       </div>
     </div>
   );

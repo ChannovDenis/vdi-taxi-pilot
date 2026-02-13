@@ -4,11 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const TG_REGEX = /^@[a-zA-Z0-9_]{5,32}$/;
+
 const OnboardingScreen = () => {
   const navigate = useNavigate();
   const onComplete = () => navigate("/dashboard");
   const [step, setStep] = useState(0);
   const [tg, setTg] = useState("");
+  const [tgError, setTgError] = useState("");
+
+  const handleStep0Next = () => {
+    if (!tg) {
+      setTgError("Введите Telegram username");
+      return;
+    }
+    if (!TG_REGEX.test(tg)) {
+      setTgError("Формат: @username (5–32 символа, буквы, цифры, _)");
+      return;
+    }
+    setTgError("");
+    setStep(1);
+  };
 
   const steps = [
     {
@@ -18,12 +34,13 @@ const OnboardingScreen = () => {
           <p className="text-sm text-muted-foreground">Мы будем уведомлять вас о статусе сессий и бронирований через Telegram.</p>
           <div>
             <Label className="text-xs text-muted-foreground">Telegram username</Label>
-            <Input className="mt-1" placeholder="@username" value={tg} onChange={(e) => setTg(e.target.value)} />
+            <Input className="mt-1" placeholder="@username" value={tg} onChange={(e) => { setTg(e.target.value); setTgError(""); }} />
+            {tgError && <p className="mt-1 text-xs text-destructive">{tgError}</p>}
           </div>
         </div>
       ),
       button: "Далее",
-      action: () => setStep(1),
+      action: handleStep0Next,
     },
     {
       title: "Добавьте на рабочий стол",

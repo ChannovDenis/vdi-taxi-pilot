@@ -37,12 +37,22 @@ const initialServices: ServiceRow[] = [
 
 const categories = ["Ресерч", "Google AI", "Reasoning", "Видео", "Код"];
 
+const URL_REGEX = /^https?:\/\/.+/;
+
+interface FormErrors {
+  service?: string;
+  url?: string;
+  login?: string;
+  cost?: string;
+}
+
 const ServicesTab = () => {
   const { toast } = useToast();
   const [services, setServices] = useState<ServiceRow[]>(initialServices);
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   // Form state
   const [form, setForm] = useState({ service: "", category: "", url: "", login: "", password: "", cost: "", active: true });
@@ -51,16 +61,29 @@ const ServicesTab = () => {
     const s = services[i];
     setForm({ service: s.service, category: s.category, url: s.url, login: s.login, password: s.password, cost: s.cost, active: s.active });
     setShowPwd(false);
+    setFormErrors({});
     setEditIndex(i);
   };
 
   const openAdd = () => {
     setForm({ service: "", category: "Ресерч", url: "", login: "", password: "", cost: "", active: true });
     setShowPwd(false);
+    setFormErrors({});
     setShowAdd(true);
   };
 
+  const validateForm = (): boolean => {
+    const errs: FormErrors = {};
+    if (!form.service.trim()) errs.service = "Введите название";
+    if (form.url && !URL_REGEX.test(form.url)) errs.url = "URL должен начинаться с http:// или https://";
+    if (!form.login.trim()) errs.login = "Введите логин";
+    if (!form.cost.trim()) errs.cost = "Введите стоимость";
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSave = () => {
+    if (!validateForm()) return;
     if (editIndex !== null) {
       setServices((prev) => prev.map((s, i) => i === editIndex ? { ...s, ...form } : s));
       toast({ title: "Сохранено", description: form.service });
@@ -69,6 +92,7 @@ const ServicesTab = () => {
   };
 
   const handleAdd = () => {
+    if (!validateForm()) return;
     setServices((prev) => [...prev, { ...form, plan: "—", renewal: "—", status: form.active ? "Активен" : "Отключён" }]);
     toast({ title: "Сервис добавлен", description: form.service });
     setShowAdd(false);
@@ -80,11 +104,16 @@ const ServicesTab = () => {
 
   const modalOpen = editIndex !== null || showAdd;
 
+  const clearError = (field: keyof FormErrors) => {
+    setFormErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
+  };
+
   const formUI = (
     <div className="space-y-4">
       <div>
         <Label className="text-xs text-muted-foreground">Название</Label>
-        <Input className="mt-1" value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value })} />
+        <Input className="mt-1" value={form.service} onChange={(e) => { setForm({ ...form, service: e.target.value }); clearError("service"); }} />
+        {formErrors.service && <p className="mt-1 text-xs text-destructive">{formErrors.service}</p>}
       </div>
       <div>
         <Label className="text-xs text-muted-foreground">Категория</Label>
@@ -97,11 +126,13 @@ const ServicesTab = () => {
       </div>
       <div>
         <Label className="text-xs text-muted-foreground">URL</Label>
-        <Input className="mt-1" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
+        <Input className="mt-1" value={form.url} onChange={(e) => { setForm({ ...form, url: e.target.value }); clearError("url"); }} placeholder="https://..." />
+        {formErrors.url && <p className="mt-1 text-xs text-destructive">{formErrors.url}</p>}
       </div>
       <div>
         <Label className="text-xs text-muted-foreground">Логин</Label>
-        <Input className="mt-1" value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} />
+        <Input className="mt-1" value={form.login} onChange={(e) => { setForm({ ...form, login: e.target.value }); clearError("login"); }} />
+        {formErrors.login && <p className="mt-1 text-xs text-destructive">{formErrors.login}</p>}
       </div>
       <div>
         <Label className="text-xs text-muted-foreground">Пароль</Label>
@@ -114,7 +145,8 @@ const ServicesTab = () => {
       </div>
       <div>
         <Label className="text-xs text-muted-foreground">$/мес</Label>
-        <Input className="mt-1" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
+        <Input className="mt-1" value={form.cost} onChange={(e) => { setForm({ ...form, cost: e.target.value }); clearError("cost"); }} />
+        {formErrors.cost && <p className="mt-1 text-xs text-destructive">{formErrors.cost}</p>}
       </div>
       <div className="flex items-center gap-2">
         <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
