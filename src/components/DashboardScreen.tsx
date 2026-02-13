@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
@@ -97,20 +98,20 @@ const timeSlots = Array.from({ length: 19 }, (_, i) => {
   return `${String(h).padStart(2, "0")}:${m}`;
 });
 
-/* ───── Props ───── */
-
-interface Props {
-  onBook: (slotName: string) => void;
-  onAdmin: () => void;
-  onLogout: () => void;
-  onProfile: () => void;
-}
-
 /* ───── Component ───── */
 
-const DashboardScreen = ({ onBook, onAdmin, onLogout, onProfile }: Props) => {
+const DashboardScreen = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  const onBook = (slotName: string) => {
+    const slot = allSlots.find((s) => s.name === slotName);
+    if (slot) navigate(`/session/${slot.id}`);
+  };
+  const onAdmin = () => navigate("/admin");
+  const onLogout = () => navigate("/login");
+  const onProfile = () => navigate("/profile");
   const [favorites, setFavorites] = useState<Set<string>>(new Set(defaultFavorites));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 

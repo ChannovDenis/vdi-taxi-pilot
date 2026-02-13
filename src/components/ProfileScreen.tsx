@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,11 +28,9 @@ const videos = [
   { title: "Veo + Flow: создание видео", duration: "1 мин" },
 ];
 
-interface Props {
-  onBack: () => void;
-}
-
-const ProfileScreen = ({ onBack }: Props) => {
+const ProfileScreen = () => {
+  const navigate = useNavigate();
+  const onBack = () => navigate("/dashboard");
   const { toast } = useToast();
   const [checked, setChecked] = useState<Set<string>>(new Set(defaultChecked));
   const [videoModal, setVideoModal] = useState<string | null>(null);

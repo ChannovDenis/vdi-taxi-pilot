@@ -1,13 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-interface Props {
-  onComplete: () => void;
-}
-
-const OnboardingScreen = ({ onComplete }: Props) => {
+const OnboardingScreen = () => {
+  const navigate = useNavigate();
+  const onComplete = () => navigate("/dashboard");
   const [step, setStep] = useState(0);
   const [tg, setTg] = useState("");
 

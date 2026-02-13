@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -11,12 +12,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface Props {
-  slotName: string;
-  onEnd: () => void;
-}
-
-const SessionScreen = ({ slotName, onEnd }: Props) => {
+const SessionScreen = () => {
+  const { slotId } = useParams<{ slotId: string }>();
+  const navigate = useNavigate();
+  const slotName = slotId || "Unknown";
+  const onEnd = () => navigate(`/session/${slotId}/end`);
   const [showConfirm, setShowConfirm] = useState(false);
 
   return (

@@ -1,12 +1,12 @@
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
 
-interface Props {
-  slotName: string;
-  onBack: () => void;
-}
-
-const SessionEndScreen = ({ slotName, onBack }: Props) => {
+const SessionEndScreen = () => {
+  const { slotId } = useParams<{ slotId: string }>();
+  const navigate = useNavigate();
+  const slotName = slotId || "Unknown";
+  const onBack = () => navigate("/dashboard");
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md space-y-6 text-center">

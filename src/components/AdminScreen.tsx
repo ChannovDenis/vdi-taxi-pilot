@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -13,10 +14,6 @@ import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import HealthTab from "@/components/admin/HealthTab";
 import ServicesTab from "@/components/admin/ServicesTab";
-
-interface Props {
-  onBack: () => void;
-}
 
 const loadData = [
   { id: "ppx-1", pct: 78 },
@@ -59,7 +56,9 @@ const iconOptions = ["🔍", "📊", "🎬", "📝", "💡", "🎯"];
 const barColor = (pct: number) =>
   pct > 70 ? "hsl(var(--destructive))" : pct >= 30 ? "hsl(45, 93%, 47%)" : "hsl(var(--success))";
 
-const AdminScreen = ({ onBack }: Props) => {
+const AdminScreen = () => {
+  const navigate = useNavigate();
+  const onBack = () => navigate("/dashboard");
   const { toast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [tplName, setTplName] = useState("");

@@ -1,14 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Car } from "lucide-react";
 
-interface Props {
-  onLogin: () => void;
-}
-
-const LoginScreen = ({ onLogin }: Props) => {
+const LoginScreen = () => {
+  const navigate = useNavigate();
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
@@ -57,7 +55,7 @@ const LoginScreen = ({ onLogin }: Props) => {
               </InputOTPGroup>
             </InputOTP>
           </div>
-          <Button className="w-full" onClick={onLogin}>
+          <Button className="w-full" onClick={() => navigate("/dashboard")}>
             Войти
           </Button>
         </div>
