@@ -4,8 +4,9 @@ import DashboardScreen from "@/components/DashboardScreen";
 import SessionScreen from "@/components/SessionScreen";
 import SessionEndScreen from "@/components/SessionEndScreen";
 import AdminScreen from "@/components/AdminScreen";
+import ProfileScreen from "@/components/ProfileScreen";
 
-type Screen = "login" | "dashboard" | "session" | "sessionEnd" | "admin";
+type Screen = "login" | "dashboard" | "session" | "sessionEnd" | "admin" | "profile";
 
 const Index = () => {
   const [screen, setScreen] = useState<Screen>("login");
@@ -25,6 +26,7 @@ const Index = () => {
           onBook={handleBook}
           onAdmin={() => setScreen("admin")}
           onLogout={() => setScreen("login")}
+          onProfile={() => setScreen("profile")}
         />
       );
     case "session":
@@ -33,6 +35,8 @@ const Index = () => {
       return <SessionEndScreen slotName={activeSlot} onBack={() => setScreen("dashboard")} />;
     case "admin":
       return <AdminScreen onBack={() => setScreen("dashboard")} />;
+    case "profile":
+      return <ProfileScreen onBack={() => setScreen("dashboard")} />;
   }
 };
 

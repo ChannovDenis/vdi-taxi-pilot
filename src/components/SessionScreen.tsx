@@ -28,7 +28,7 @@ const SessionScreen = ({ slotName, onEnd }: Props) => {
           {slotName}
         </div>
         <span className="font-mono text-sm text-muted-foreground">00:14:32</span>
-        <Button size="sm" variant="destructive" onClick={() => setShowConfirm(true)}>
+        <Button size="sm" variant="destructive" onClick={() => setShowConfirm(true)} className="md:h-9 h-12">
           Освободить
         </Button>
       </div>
