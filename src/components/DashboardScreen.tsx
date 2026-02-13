@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
   Car, Settings, LogOut, Star, CalendarDays, HelpCircle,
-  Pencil, Search, Video, BarChart3, Menu, X, User,
+  Pencil, Search, Video, BarChart3, Menu, X, User, Trash2,
 } from "lucide-react";
 
 /* ───── Types ───── */
@@ -50,6 +50,16 @@ interface ProfileData {
   id: number;
   name: string;
   favorites: string[];
+}
+
+interface BookingOut {
+  id: number;
+  slot_id: string;
+  date: string;
+  start_time: string;
+  duration_min: number;
+  status: string;
+  created_at: string;
 }
 
 /* ───── Helpers ───── */
@@ -133,6 +143,35 @@ const DashboardScreen = () => {
     },
   });
 
+  // Fetch bookings
+  const { data: bookings = [] } = useQuery<BookingOut[]>({
+    queryKey: ["bookings"],
+    queryFn: () => api.get<BookingOut[]>("/bookings"),
+  });
+
+  // Create booking mutation
+  const bookingMutation = useMutation({
+    mutationFn: (body: { slot_id: string; date: string; start_time: string; duration_min: number }) =>
+      api.post<BookingOut>("/bookings", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      toast({ title: "Бронь подтверждена", description: "Напомним в Telegram за 5 мин" });
+      setBookingSlotId(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Ошибка бронирования", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Cancel booking mutation
+  const cancelBookingMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/bookings/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      toast({ title: "Бронь отменена" });
+    },
+  });
+
   const onBook = (slotId: string) => {
     occupyMutation.mutate(slotId);
   };
@@ -141,8 +180,9 @@ const DashboardScreen = () => {
   const onProfile = () => navigate("/profile");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Booking modal state
-  const [bookingSlot, setBookingSlot] = useState<string | null>(null);
+  // Booking modal state — now stores slot ID
+  const [bookingSlotId, setBookingSlotId] = useState<string | null>(null);
+  const bookingSlotName = bookingSlotId ? slots.find((s) => s.id === bookingSlotId)?.service_name ?? bookingSlotId : null;
   const [bookingDate, setBookingDate] = useState<Date | undefined>(new Date());
   const [bookingTime, setBookingTime] = useState("10:00");
   const [bookingDuration, setBookingDuration] = useState("60");
@@ -161,8 +201,13 @@ const DashboardScreen = () => {
   };
 
   const handleBookingConfirm = () => {
-    toast({ title: "Бронь подтверждена", description: "Напомним в Telegram за 5 мин" });
-    setBookingSlot(null);
+    if (!bookingSlotId || !bookingDate) return;
+    bookingMutation.mutate({
+      slot_id: bookingSlotId,
+      date: format(bookingDate, "yyyy-MM-dd"),
+      start_time: bookingTime,
+      duration_min: parseInt(bookingDuration),
+    });
   };
 
   const handleTemplateLaunch = (t: Template) => {
@@ -322,7 +367,7 @@ const DashboardScreen = () => {
                             <Star className={cn("h-4 w-4", favorites.has(slot.id) && "fill-yellow-400 text-yellow-400")} />
                           </button>
                           {slot.available && (
-                            <button onClick={() => { setBookingSlot(slot.service_name); setBookingDate(new Date()); }} className="p-1 text-muted-foreground transition-colors hover:text-primary">
+                            <button onClick={() => { setBookingSlotId(slot.id); setBookingDate(new Date()); }} className="p-1 text-muted-foreground transition-colors hover:text-primary">
                               <CalendarDays className="h-4 w-4" />
                             </button>
                           )}
@@ -356,6 +401,38 @@ const DashboardScreen = () => {
           </section>
         )}
 
+        {/* My Bookings */}
+        {bookings.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              📅 Мои бронирования
+            </h2>
+            <div className="space-y-2">
+              {bookings.map((b) => {
+                const slotName = slots.find((s) => s.id === b.slot_id)?.service_name ?? b.slot_id;
+                return (
+                  <div key={b.id} className="flex items-center justify-between rounded-lg border bg-card px-4 py-2.5">
+                    <div className="text-sm">
+                      <span className="font-medium text-foreground">{slotName}</span>
+                      <span className="mx-2 text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">{b.date} в {b.start_time}</span>
+                      <span className="mx-2 text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">{b.duration_min} мин</span>
+                    </div>
+                    <button
+                      onClick={() => cancelBookingMutation.mutate(b.id)}
+                      className="p-1 text-muted-foreground transition-colors hover:text-destructive"
+                      title="Отменить"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Stats bar */}
         {!slotsLoading && slots.length > 0 && (
           <div className="rounded-xl border bg-card px-4 py-3 text-sm text-muted-foreground">
@@ -373,10 +450,10 @@ const DashboardScreen = () => {
       </main>
 
       {/* Booking Modal */}
-      <Dialog open={!!bookingSlot} onOpenChange={(o) => !o && setBookingSlot(null)}>
+      <Dialog open={!!bookingSlotId} onOpenChange={(o) => !o && setBookingSlotId(null)}>
         <DialogContent className="bg-card sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Забронировать {bookingSlot}</DialogTitle>
+            <DialogTitle>Забронировать {bookingSlotName}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -418,8 +495,10 @@ const DashboardScreen = () => {
             </p>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={() => setBookingSlot(null)}>Отмена</Button>
-            <Button onClick={handleBookingConfirm}>Забронировать</Button>
+            <Button variant="ghost" onClick={() => setBookingSlotId(null)}>Отмена</Button>
+            <Button onClick={handleBookingConfirm} disabled={bookingMutation.isPending}>
+              {bookingMutation.isPending ? "Бронирую..." : "Забронировать"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
