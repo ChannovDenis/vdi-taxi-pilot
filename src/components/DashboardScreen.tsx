@@ -6,6 +6,8 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -214,6 +216,48 @@ const DashboardScreen = () => {
   // Tutorial modal state
   const [tutorialSlot, setTutorialSlot] = useState<string | null>(null);
 
+  // Create template modal state
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
+  const [tplName, setTplName] = useState("");
+  const [tplIcon, setTplIcon] = useState("🔍");
+  const [tplSlots, setTplSlots] = useState<Set<string>>(new Set());
+  const [tplUrl, setTplUrl] = useState("");
+  const iconOptions = ["🔍", "📊", "🎬", "📝", "💡", "🎯"];
+
+  // Create template mutation
+  const createTemplateMutation = useMutation({
+    mutationFn: (body: { name: string; icon: string; slot_ids: string[]; url?: string }) =>
+      api.post<TemplateFromApi>("/templates", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["templates"] });
+      toast({ title: "Шаблон создан", description: tplName });
+      setShowCreateTemplate(false);
+      setTplName("");
+      setTplSlots(new Set());
+      setTplUrl("");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleCreateTemplate = () => {
+    createTemplateMutation.mutate({
+      name: tplName,
+      icon: tplIcon,
+      slot_ids: Array.from(tplSlots),
+      url: tplUrl || undefined,
+    });
+  };
+
+  const toggleTplSlot = (s: string) => {
+    setTplSlots((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s); else next.add(s);
+      return next;
+    });
+  };
+
   const toggleFavorite = (id: string) => {
     const current = profile?.favorites ?? [];
     const next = current.includes(id) ? current.filter((f) => f !== id) : [...current, id];
@@ -361,7 +405,7 @@ const DashboardScreen = () => {
             <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               📋 Шаблоны задач
             </h2>
-            <button className="text-xs text-primary hover:underline">+ Создать шаблон</button>
+            <button onClick={() => { setShowCreateTemplate(true); setTplName(""); setTplIcon("🔍"); setTplSlots(new Set()); setTplUrl(""); }} className="text-xs text-primary hover:underline">+ Создать шаблон</button>
           </div>
           <div className={cn("gap-4", isMobile ? "flex flex-col" : "flex overflow-x-auto pb-1")}>
             {templates.map((t) => {
@@ -555,6 +599,51 @@ const DashboardScreen = () => {
           <div className="flex aspect-video items-center justify-center rounded-lg bg-muted">
             <p className="text-muted-foreground text-sm">Видео: Как использовать {tutorialSlot}</p>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Template Modal */}
+      <Dialog open={showCreateTemplate} onOpenChange={setShowCreateTemplate}>
+        <DialogContent className="bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Создать шаблон</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Название</Label>
+              <Input className="mt-1" value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Мой шаблон" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Иконка</Label>
+              <Select value={tplIcon} onValueChange={setTplIcon}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {iconOptions.map((ic) => <SelectItem key={ic} value={ic}>{ic}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Слоты</Label>
+              <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                {slots.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox checked={tplSlots.has(s.id)} onCheckedChange={() => toggleTplSlot(s.id)} />
+                    <span className="text-sm">{s.service_name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">URL (опционально)</Label>
+              <Input className="mt-1" value={tplUrl} onChange={(e) => setTplUrl(e.target.value)} placeholder="https://..." />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowCreateTemplate(false)}>Отмена</Button>
+            <Button onClick={handleCreateTemplate} disabled={!tplName || tplSlots.size === 0 || createTemplateMutation.isPending}>
+              {createTemplateMutation.isPending ? "Создаю..." : "Создать"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
