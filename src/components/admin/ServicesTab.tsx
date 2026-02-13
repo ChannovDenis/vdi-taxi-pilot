@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -9,100 +11,170 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pencil, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface ServiceRow {
-  service: string;
-  plan: string;
-  cost: string;
-  renewal: string;
-  status: string;
-  active: boolean;
-  url: string;
-  login: string;
-  password: string;
+/* ───── Types ───── */
+
+interface SlotAdmin {
+  id: string;
+  service_name: string;
+  tier: string | null;
   category: string;
+  category_accent: string;
+  monthly_cost: number;
+  url: string | null;
+  login: string | null;
+  password: string | null;
+  chrome_profile: string | null;
+  is_active: boolean;
 }
 
-const initialServices: ServiceRow[] = [
-  { service: "Perplexity Max #1", plan: "Max", cost: "$200", renewal: "15 фев 2026", status: "Активен", active: true, url: "https://perplexity.ai", login: "user1@mail.com", password: "pass123", category: "Ресерч" },
-  { service: "Perplexity Max #2", plan: "Max", cost: "$200", renewal: "15 фев 2026", status: "Активен", active: true, url: "https://perplexity.ai", login: "user2@mail.com", password: "pass123", category: "Ресерч" },
-  { service: "Perplexity Max #3", plan: "Max", cost: "$200", renewal: "15 фев 2026", status: "Активен", active: true, url: "https://perplexity.ai", login: "user3@mail.com", password: "pass123", category: "Ресерч" },
-  { service: "Gemini Ultra — Deep Think", plan: "Ultra", cost: "$250", renewal: "20 фев 2026", status: "Активен", active: true, url: "https://gemini.google.com", login: "admin@gmail.com", password: "gem456", category: "Google AI" },
-  { service: "Nano Banana Pro", plan: "Pro", cost: "$200", renewal: "20 фев 2026", status: "Активен", active: true, url: "https://nanobanana.ai", login: "admin@gmail.com", password: "nb789", category: "Google AI" },
-  { service: "Veo + Flow", plan: "Ultra", cost: "$250", renewal: "20 фев 2026", status: "Активен", active: true, url: "https://veo.google.com", login: "admin@gmail.com", password: "veo321", category: "Видео" },
-  { service: "NotebookLM + Drive", plan: "Ultra", cost: "$250", renewal: "20 фев 2026", status: "Активен", active: true, url: "https://notebooklm.google.com", login: "admin@gmail.com", password: "nb654", category: "Google AI" },
-  { service: "ChatGPT Pro — o3-pro", plan: "Pro", cost: "$200", renewal: "10 фев 2026", status: "Активен", active: true, url: "https://chatgpt.com", login: "admin@openai.com", password: "gpt987", category: "Reasoning" },
-  { service: "Higgsfield Ultimate", plan: "Ultimate", cost: "$99", renewal: "01 мар 2026", status: "Активен", active: true, url: "https://higgsfield.ai", login: "user@hf.com", password: "hf111", category: "Видео" },
-  { service: "Lovable Team", plan: "Team", cost: "$100", renewal: "01 мар 2026", status: "Активен", active: true, url: "https://lovable.dev", login: "team@lovable.dev", password: "lov222", category: "Код" },
-];
+/* ───── Const ───── */
 
 const categories = ["Ресерч", "Google AI", "Reasoning", "Видео", "Код"];
-
 const URL_REGEX = /^https?:\/\/.+/;
 
 interface FormErrors {
+  id?: string;
   service?: string;
   url?: string;
   login?: string;
   cost?: string;
 }
 
+/* ───── Component ───── */
+
 const ServicesTab = () => {
   const { toast } = useToast();
-  const [services, setServices] = useState<ServiceRow[]>(initialServices);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+
+  // Fetch slots from admin API
+  const { data: services = [], isLoading } = useQuery<SlotAdmin[]>({
+    queryKey: ["admin", "slots"],
+    queryFn: () => api.get<SlotAdmin[]>("/admin/slots"),
+  });
+
+  const [editId, setEditId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   // Form state
-  const [form, setForm] = useState({ service: "", category: "", url: "", login: "", password: "", cost: "", active: true });
+  const [form, setForm] = useState({
+    id: "", service: "", tier: "", category: "Ресерч", url: "", login: "", password: "", cost: "", active: true,
+  });
 
-  const openEdit = (i: number) => {
-    const s = services[i];
-    setForm({ service: s.service, category: s.category, url: s.url, login: s.login, password: s.password, cost: s.cost, active: s.active });
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: (body: {
+      id: string; service_name: string; tier?: string; category: string;
+      monthly_cost: number; url?: string; login?: string; password?: string; is_active: boolean;
+    }) => api.post<SlotAdmin>("/admin/slots", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "slots"] });
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
+      toast({ title: "Сервис добавлен", description: form.service });
+      setShowAdd(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ slotId, body }: {
+      slotId: string; body: {
+        service_name?: string; tier?: string; category?: string;
+        monthly_cost?: number; url?: string; login?: string; password?: string; is_active?: boolean;
+      };
+    }) => api.put<SlotAdmin>(`/admin/slots/${slotId}`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "slots"] });
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
+      toast({ title: "Сохранено", description: form.service });
+      setEditId(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const openEdit = (s: SlotAdmin) => {
+    setForm({
+      id: s.id,
+      service: s.service_name,
+      tier: s.tier ?? "",
+      category: s.category,
+      url: s.url ?? "",
+      login: s.login ?? "",
+      password: s.password ?? "",
+      cost: String(s.monthly_cost),
+      active: s.is_active,
+    });
     setShowPwd(false);
     setFormErrors({});
-    setEditIndex(i);
+    setEditId(s.id);
   };
 
   const openAdd = () => {
-    setForm({ service: "", category: "Ресерч", url: "", login: "", password: "", cost: "", active: true });
+    setForm({ id: "", service: "", tier: "", category: "Ресерч", url: "", login: "", password: "", cost: "", active: true });
     setShowPwd(false);
     setFormErrors({});
     setShowAdd(true);
   };
 
-  const validateForm = (): boolean => {
+  const validateForm = (isNew: boolean): boolean => {
     const errs: FormErrors = {};
+    if (isNew && !form.id.trim()) errs.id = "Введите ID слота (напр. ppx-1)";
     if (!form.service.trim()) errs.service = "Введите название";
     if (form.url && !URL_REGEX.test(form.url)) errs.url = "URL должен начинаться с http:// или https://";
-    if (!form.login.trim()) errs.login = "Введите логин";
     if (!form.cost.trim()) errs.cost = "Введите стоимость";
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleSave = () => {
-    if (!validateForm()) return;
-    if (editIndex !== null) {
-      setServices((prev) => prev.map((s, i) => i === editIndex ? { ...s, ...form } : s));
-      toast({ title: "Сохранено", description: form.service });
-      setEditIndex(null);
+    if (!validateForm(false)) return;
+    if (editId) {
+      updateMutation.mutate({
+        slotId: editId,
+        body: {
+          service_name: form.service,
+          tier: form.tier || undefined,
+          category: form.category,
+          monthly_cost: parseFloat(form.cost) || 0,
+          url: form.url || undefined,
+          login: form.login || undefined,
+          password: form.password || undefined,
+          is_active: form.active,
+        },
+      });
     }
   };
 
   const handleAdd = () => {
-    if (!validateForm()) return;
-    setServices((prev) => [...prev, { ...form, plan: "—", renewal: "—", status: form.active ? "Активен" : "Отключён" }]);
-    toast({ title: "Сервис добавлен", description: form.service });
-    setShowAdd(false);
+    if (!validateForm(true)) return;
+    createMutation.mutate({
+      id: form.id,
+      service_name: form.service,
+      tier: form.tier || undefined,
+      category: form.category,
+      monthly_cost: parseFloat(form.cost) || 0,
+      url: form.url || undefined,
+      login: form.login || undefined,
+      password: form.password || undefined,
+      is_active: form.active,
+    });
   };
 
-  const toggleActive = (i: number) => {
-    setServices((prev) => prev.map((s, idx) => idx === i ? { ...s, active: !s.active, status: s.active ? "Отключён" : "Активен" } : s));
+  const toggleActive = (s: SlotAdmin) => {
+    updateMutation.mutate({
+      slotId: s.id,
+      body: { is_active: !s.is_active },
+    });
   };
 
-  const modalOpen = editIndex !== null || showAdd;
+  const modalOpen = editId !== null || showAdd;
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const clearError = (field: keyof FormErrors) => {
     setFormErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
@@ -110,10 +182,21 @@ const ServicesTab = () => {
 
   const formUI = (
     <div className="space-y-4">
+      {showAdd && (
+        <div>
+          <Label className="text-xs text-muted-foreground">ID слота</Label>
+          <Input className="mt-1" value={form.id} onChange={(e) => { setForm({ ...form, id: e.target.value }); clearError("id"); }} placeholder="ppx-4" />
+          {formErrors.id && <p className="mt-1 text-xs text-destructive">{formErrors.id}</p>}
+        </div>
+      )}
       <div>
         <Label className="text-xs text-muted-foreground">Название</Label>
         <Input className="mt-1" value={form.service} onChange={(e) => { setForm({ ...form, service: e.target.value }); clearError("service"); }} />
         {formErrors.service && <p className="mt-1 text-xs text-destructive">{formErrors.service}</p>}
+      </div>
+      <div>
+        <Label className="text-xs text-muted-foreground">Тариф</Label>
+        <Input className="mt-1" value={form.tier} onChange={(e) => setForm({ ...form, tier: e.target.value })} placeholder="Max / Pro / Ultra" />
       </div>
       <div>
         <Label className="text-xs text-muted-foreground">Категория</Label>
@@ -158,6 +241,9 @@ const ServicesTab = () => {
   return (
     <div className="pt-4 space-y-4">
       <Button onClick={openAdd}>+ Добавить сервис</Button>
+
+      {isLoading && <p className="text-sm text-muted-foreground">Загрузка...</p>}
+
       <div className="rounded-xl border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
@@ -165,25 +251,27 @@ const ServicesTab = () => {
               <TableHead>Сервис</TableHead>
               <TableHead>Тариф</TableHead>
               <TableHead>$/мес</TableHead>
-              <TableHead>Следующее списание</TableHead>
+              <TableHead>Категория</TableHead>
               <TableHead>Статус</TableHead>
               <TableHead>Действия</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {services.map((s, i) => (
-              <TableRow key={i}>
-                <TableCell className="font-medium">{s.service}</TableCell>
-                <TableCell>{s.plan}</TableCell>
-                <TableCell>{s.cost}</TableCell>
-                <TableCell>{s.renewal}</TableCell>
-                <TableCell className={s.active ? "text-[hsl(var(--success))]" : "text-muted-foreground"}>{s.status}</TableCell>
+            {services.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="font-medium">{s.service_name}</TableCell>
+                <TableCell>{s.tier ?? "—"}</TableCell>
+                <TableCell>${s.monthly_cost}</TableCell>
+                <TableCell className="text-muted-foreground">{s.category}</TableCell>
+                <TableCell className={s.is_active ? "text-[hsl(var(--success))]" : "text-muted-foreground"}>
+                  {s.is_active ? "Активен" : "Отключён"}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => openEdit(i)} className="text-muted-foreground hover:text-foreground">
+                    <button onClick={() => openEdit(s)} className="text-muted-foreground hover:text-foreground">
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <Switch checked={s.active} onCheckedChange={() => toggleActive(i)} />
+                    <Switch checked={s.is_active} onCheckedChange={() => toggleActive(s)} />
                   </div>
                 </TableCell>
               </TableRow>
@@ -193,15 +281,17 @@ const ServicesTab = () => {
       </div>
 
       {/* Edit / Add modal */}
-      <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) { setEditIndex(null); setShowAdd(false); } }}>
+      <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) { setEditId(null); setShowAdd(false); } }}>
         <DialogContent className="bg-card sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editIndex !== null ? "Редактировать сервис" : "Добавить сервис"}</DialogTitle>
+            <DialogTitle>{editId ? "Редактировать сервис" : "Добавить сервис"}</DialogTitle>
           </DialogHeader>
           {formUI}
           <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={() => { setEditIndex(null); setShowAdd(false); }}>Отмена</Button>
-            <Button onClick={editIndex !== null ? handleSave : handleAdd} disabled={!form.service}>Сохранить</Button>
+            <Button variant="ghost" onClick={() => { setEditId(null); setShowAdd(false); }}>Отмена</Button>
+            <Button onClick={editId ? handleSave : handleAdd} disabled={!form.service || isPending}>
+              {isPending ? "Сохраняю..." : "Сохранить"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
