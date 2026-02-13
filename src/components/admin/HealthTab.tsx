@@ -1,8 +1,10 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Wifi, WifiOff, CheckCircle, AlertTriangle, XCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface VmInfo {
   vm_id: string;
@@ -39,12 +41,22 @@ const statusLabel = (s: string) => {
 
 const HealthTab = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  const { data: health, isLoading } = useQuery<HealthData>({
+  const { data: health, isLoading, isFetching } = useQuery<HealthData>({
     queryKey: ["admin-health"],
-    queryFn: () => api.get<HealthData>("/admin/health"),
+    queryFn: async () => {
+      const data = await api.get<HealthData>("/admin/health");
+      setLastRefresh(new Date());
+      return data;
+    },
     refetchInterval: 30_000, // Refresh every 30s
   });
+
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["admin-health"] });
+  };
 
   const rebootMutation = useMutation({
     mutationFn: (vmId: string) => api.post<{ ok: boolean; message: string }>(`/admin/vm/${vmId}/reboot`),
@@ -71,8 +83,20 @@ const HealthTab = () => {
   const services = health?.services ?? [];
   const vpn = health?.vpn ?? { connected: false, ip: null, interface: "wg0" };
 
+  const refreshTimeStr = lastRefresh.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
   return (
     <div className="space-y-6 pt-4">
+      {/* Refresh bar */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">
+          Обновлено: {refreshTimeStr} · Авто-обновление каждые 30с
+        </span>
+        <Button size="sm" variant="outline" onClick={handleManualRefresh} disabled={isFetching} className="gap-1.5">
+          <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} /> Обновить
+        </Button>
+      </div>
+
       {/* VM Cards */}
       <div>
         <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-widest">Виртуальные машины</h3>
