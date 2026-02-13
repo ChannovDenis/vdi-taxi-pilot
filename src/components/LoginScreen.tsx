@@ -13,7 +13,6 @@ import { Car } from "lucide-react";
 const loginSchema = z.object({
   username: z.string().min(1, "Введите логин"),
   password: z.string().min(4, "Пароль минимум 4 символа"),
-  totp_code: z.string().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -39,7 +38,8 @@ const LoginScreen = () => {
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: "", password: "", totp_code: "" },
+    defaultValues: { username: "", password: "" },
+    mode: "onTouched",
   });
 
   const onSubmit = async (values: LoginFormValues) => {
@@ -47,8 +47,9 @@ const LoginScreen = () => {
     setLoading(true);
     try {
       const data = await api.post<LoginResponse>("/auth/login", {
-        ...values,
-        totp_code: otp,
+        username: values.username,
+        password: values.password,
+        totp_code: otp || "",
       });
 
       login(data.token, data.user);
@@ -107,7 +108,9 @@ const LoginScreen = () => {
             {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
           <div className="space-y-2">
-            <label className="text-sm text-muted-foreground">Код 2FA</label>
+            <label className="text-sm text-muted-foreground">
+              Код 2FA <span className="text-xs opacity-60">(если подключён)</span>
+            </label>
             <InputOTP maxLength={6} value={otp} onChange={setOtp}>
               <InputOTPGroup>
                 <InputOTPSlot index={0} />
