@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
   Car, Settings, LogOut, Star, CalendarDays, HelpCircle,
-  Pencil, Search, Video, BarChart3, Menu, X, User, Trash2,
+  Pencil, Menu, X, User, Trash2,
 } from "lucide-react";
 
 /* ───── Types ───── */
@@ -76,20 +76,16 @@ function groupByCategory(slots: SlotFromApi[]): Category[] {
   return Array.from(map.values());
 }
 
-/* ───── Static data (templates — will be from API in S1-4) ───── */
+/* ───── Types (templates from API) ───── */
 
-interface Template {
-  icon: React.ReactNode;
+interface TemplateFromApi {
+  id: number;
   name: string;
-  description: string;
-  slotIds: string[];
+  icon: string;
+  slot_ids: string[];
+  url: string | null;
+  usage_count: number;
 }
-
-const templates: Template[] = [
-  { icon: <Search className="h-5 w-5" />, name: "Ресерч конкурентов", description: "Perplexity Max + NotebookLM", slotIds: ["ppx-1", "nb-drive"] },
-  { icon: <Video className="h-5 w-5" />, name: "Создание видео", description: "Veo + Flow + Higgsfield", slotIds: ["gem-veo", "hf-1"] },
-  { icon: <BarChart3 className="h-5 w-5" />, name: "Подготовка презентации", description: "Gemini NB + Nano Banana Pro", slotIds: ["nb-drive", "nbp"] },
-];
 
 const timeSlots = Array.from({ length: 19 }, (_, i) => {
   const h = Math.floor(i / 2) + 9;
@@ -116,6 +112,29 @@ const DashboardScreen = () => {
   });
 
   const categories = groupByCategory(slots);
+
+  // Fetch templates from API
+  const { data: templates = [] } = useQuery<TemplateFromApi[]>({
+    queryKey: ["templates"],
+    queryFn: () => api.get<TemplateFromApi[]>("/templates"),
+  });
+
+  // Launch template mutation
+  const launchTemplateMutation = useMutation({
+    mutationFn: (templateId: number) => api.post<{ template_id: number; sessions: { slot_id: string; status: string }[] }>(`/templates/${templateId}/launch`),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
+      const okSession = data.sessions.find((s) => s.status === "ok");
+      if (okSession) {
+        navigate(`/session/${okSession.slot_id}`);
+      } else {
+        toast({ title: "Все слоты шаблона заняты", variant: "destructive" });
+      }
+    },
+    onError: (err: Error) => {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
 
   // Occupy mutation
   const occupyMutation = useMutation({
@@ -224,9 +243,9 @@ const DashboardScreen = () => {
     });
   };
 
-  const handleTemplateLaunch = (t: Template) => {
-    toast({ title: `Занимаю ${t.slotIds.length} слота`, description: "Подключение..." });
-    occupyMutation.mutate(t.slotIds[0]);
+  const handleTemplateLaunch = (t: TemplateFromApi) => {
+    toast({ title: `Запускаю "${t.name}"`, description: `Занимаю ${t.slot_ids.length} слотов...` });
+    launchTemplateMutation.mutate(t.id);
   };
 
   const favoriteSlots = slots.filter((s) => favorites.has(s.id));
@@ -341,18 +360,21 @@ const DashboardScreen = () => {
             <button className="text-xs text-primary hover:underline">+ Создать шаблон</button>
           </div>
           <div className={cn("gap-4", isMobile ? "flex flex-col" : "flex overflow-x-auto pb-1")}>
-            {templates.map((t) => (
-              <div key={t.name} className="flex w-full shrink-0 flex-col justify-between rounded-xl border bg-card p-4 md:w-[220px]">
-                <div>
-                  <div className="mb-2 text-primary">{t.icon}</div>
-                  <h3 className="font-medium text-foreground text-sm">{t.name}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{t.description}</p>
+            {templates.map((t) => {
+              const slotNames = t.slot_ids.map((id) => slots.find((s) => s.id === id)?.service_name ?? id).join(" + ");
+              return (
+                <div key={t.id} className="flex w-full shrink-0 flex-col justify-between rounded-xl border bg-card p-4 md:w-[220px]">
+                  <div>
+                    <div className="mb-2 text-xl">{t.icon}</div>
+                    <h3 className="font-medium text-foreground text-sm">{t.name}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{slotNames}</p>
+                  </div>
+                  <Button size="sm" className="mt-3 w-full" onClick={() => handleTemplateLaunch(t)}>
+                    Запустить
+                  </Button>
                 </div>
-                <Button size="sm" className="mt-3 w-full" onClick={() => handleTemplateLaunch(t)}>
-                  Запустить
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 

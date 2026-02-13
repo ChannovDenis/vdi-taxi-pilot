@@ -206,7 +206,7 @@
 
 ---
 
-### S1-4. API + UI для шаблонов (templates CRUD)
+### S1-4. API + UI для шаблонов (templates CRUD) [DONE]
 
 | | |
 |---|---|
