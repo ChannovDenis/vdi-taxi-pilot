@@ -1,0 +1,26 @@
+all:
+  children:
+    vdi_vms:
+      hosts:
+        vm-1:
+          ansible_host: 10.0.0.11
+          chrome_profiles: ["ppx-1", "ppx-2"]
+        vm-2:
+          ansible_host: 10.0.0.12
+          chrome_profiles: ["ppx-3", "gem-dt"]
+        vm-3:
+          ansible_host: 10.0.0.13
+          chrome_profiles: ["gem-veo", "nbp"]
+        vm-4:
+          ansible_host: 10.0.0.14
+          chrome_profiles: ["nb-drive", "gpt-1"]
+        vm-5:
+          ansible_host: 10.0.0.15
+          chrome_profiles: ["hf-1", "lov-1"]
+
+  vars:
+    ansible_user: vdi
+    ansible_ssh_private_key_file: ~/.ssh/vdi_key
+    chrome_version: "latest"
+    dump_script_path: /opt/vdi/collect_dump.sh
+    vnc_port: 5901

@@ -478,7 +478,7 @@
 
 ---
 
-### S3-3. Ansible playbooks для VM
+### S3-3. Ansible playbooks для VM [DONE]
 
 | | |
 |---|---|

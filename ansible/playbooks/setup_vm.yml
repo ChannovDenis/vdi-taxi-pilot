@@ -1,0 +1,127 @@
+---
+# setup_vm.yml — Provision a VDI VM with Chrome, VNC, and dump script
+#
+# Usage: ansible-playbook -i inventory.yml playbooks/setup_vm.yml
+
+- name: Setup VDI VM
+  hosts: vdi_vms
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install base packages
+      apt:
+        name:
+          - xfce4
+          - xfce4-terminal
+          - tigervnc-standalone-server
+          - tigervnc-common
+          - sqlite3
+          - xclip
+          - scrot
+          - curl
+          - wget
+          - unzip
+          - fonts-noto
+          - fonts-noto-cjk
+        state: present
+
+    - name: Add Google Chrome repo key
+      apt_key:
+        url: https://dl.google.com/linux/linux_signing_key.pub
+        state: present
+
+    - name: Add Google Chrome repo
+      apt_repository:
+        repo: "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main"
+        state: present
+
+    - name: Install Google Chrome
+      apt:
+        name: google-chrome-stable
+        state: latest
+
+    - name: Create VDI user
+      user:
+        name: vdi
+        shell: /bin/bash
+        create_home: true
+
+    - name: Create Chrome profiles directory
+      file:
+        path: "/home/vdi/.config/google-chrome/{{ item }}"
+        state: directory
+        owner: vdi
+        group: vdi
+        mode: "0755"
+      loop: "{{ chrome_profiles }}"
+
+    - name: Configure VNC password
+      shell: |
+        mkdir -p /home/vdi/.vnc
+        echo "vdipass" | vncpasswd -f > /home/vdi/.vnc/passwd
+        chmod 600 /home/vdi/.vnc/passwd
+        chown -R vdi:vdi /home/vdi/.vnc
+      args:
+        creates: /home/vdi/.vnc/passwd
+
+    - name: Create VNC xstartup
+      copy:
+        dest: /home/vdi/.vnc/xstartup
+        content: |
+          #!/bin/bash
+          unset SESSION_MANAGER
+          unset DBUS_SESSION_BUS_ADDRESS
+          exec startxfce4 &
+        mode: "0755"
+        owner: vdi
+        group: vdi
+
+    - name: Create VNC systemd service
+      copy:
+        dest: /etc/systemd/system/vncserver@.service
+        content: |
+          [Unit]
+          Description=VNC Server for display %i
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=vdi
+          ExecStart=/usr/bin/vncserver :%i -geometry 1920x1080 -depth 24 -localhost no
+          ExecStop=/usr/bin/vncserver -kill :%i
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start VNC on display :1
+      systemd:
+        name: vncserver@1
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Create dump script directory
+      file:
+        path: /opt/vdi
+        state: directory
+        mode: "0755"
+
+    - name: Deploy dump collection script
+      copy:
+        src: ../../scripts/collect_dump.sh
+        dest: "{{ dump_script_path }}"
+        mode: "0755"
+
+    - name: Create Downloads directory for VDI user
+      file:
+        path: /home/vdi/Downloads
+        state: directory
+        owner: vdi
+        group: vdi
+        mode: "0755"

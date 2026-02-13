@@ -1,0 +1,54 @@
+---
+# update_chrome.yml — Update Chrome and refresh cookies/logins on VDI VMs
+#
+# Usage: ansible-playbook -i inventory.yml playbooks/update_chrome.yml
+# To update specific VM: ansible-playbook -i inventory.yml playbooks/update_chrome.yml --limit vm-1
+
+- name: Update Chrome and service cookies
+  hosts: vdi_vms
+  become: true
+  tasks:
+    - name: Update Google Chrome
+      apt:
+        name: google-chrome-stable
+        state: latest
+        update_cache: true
+
+    - name: Stop VNC server
+      systemd:
+        name: vncserver@1
+        state: stopped
+      ignore_errors: true
+
+    - name: Clear Chrome cache (keep cookies and profiles)
+      shell: |
+        for profile in {{ chrome_profiles | join(' ') }}; do
+          profile_dir="/home/vdi/.config/google-chrome/${profile}"
+          if [ -d "${profile_dir}" ]; then
+            rm -rf "${profile_dir}/Cache"
+            rm -rf "${profile_dir}/Code Cache"
+            rm -rf "${profile_dir}/GPUCache"
+            echo "Cleared cache for ${profile}"
+          fi
+        done
+      become_user: vdi
+
+    - name: Start VNC server
+      systemd:
+        name: vncserver@1
+        state: started
+
+    - name: Update dump script
+      copy:
+        src: ../../scripts/collect_dump.sh
+        dest: "{{ dump_script_path }}"
+        mode: "0755"
+
+    - name: Verify Chrome version
+      command: google-chrome-stable --version
+      register: chrome_ver
+      changed_when: false
+
+    - name: Show Chrome version
+      debug:
+        msg: "Chrome version: {{ chrome_ver.stdout }}"
