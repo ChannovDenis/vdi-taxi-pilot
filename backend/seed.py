@@ -1,7 +1,7 @@
-"""Seed script: creates admin user + 10 slots from BLUEPRINT."""
+"""Seed script: creates admin user + 10 slots + 3 templates from BLUEPRINT."""
 
 from backend.database import engine, SessionLocal, Base
-from backend.models import User, Slot, VmStatus
+from backend.models import User, Slot, VmStatus, Template
 from backend.auth import hash_password
 
 SLOTS = [
@@ -15,6 +15,12 @@ SLOTS = [
     {"id": "gpt-1", "service_name": "ChatGPT Pro — o3-pro", "tier": "Pro", "category": "REASONING", "category_accent": "#8b5cf6", "monthly_cost": 200},
     {"id": "hf-1", "service_name": "Higgsfield Ultimate", "tier": "Ultimate", "category": "ВИДЕО", "category_accent": "#a855f7", "monthly_cost": 50},
     {"id": "lov-1", "service_name": "Lovable Team", "tier": "Team", "category": "КОД", "category_accent": "#f97316", "monthly_cost": 50},
+]
+
+TEMPLATES = [
+    {"name": "Ресерч конкурентов", "icon": "\U0001f50d", "slot_ids": ["ppx-1", "nb-drive"]},
+    {"name": "Создание видео", "icon": "\U0001f3ac", "slot_ids": ["gem-veo", "hf-1"]},
+    {"name": "Подготовка презентации", "icon": "\U0001f4ca", "slot_ids": ["gem-dt", "nbp"]},
 ]
 
 VMS = [
@@ -56,6 +62,11 @@ def seed():
         if not db.query(Slot).filter(Slot.id == s["id"]).first():
             db.add(Slot(**s))
 
+    # Templates
+    for t in TEMPLATES:
+        if not db.query(Template).filter(Template.name == t["name"]).first():
+            db.add(Template(**t))
+
     # VMs
     for vm in VMS:
         if not db.query(VmStatus).filter(VmStatus.vm_id == vm["vm_id"]).first():
@@ -63,7 +74,7 @@ def seed():
 
     db.commit()
     db.close()
-    print("Seed complete: 2 users, 10 slots, 5 VMs")
+    print("Seed complete: 2 users, 10 slots, 3 templates, 5 VMs")
 
 
 if __name__ == "__main__":
