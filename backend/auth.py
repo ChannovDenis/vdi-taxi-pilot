@@ -122,3 +122,14 @@ def me(user: User = Depends(get_current_user)):
         is_admin=user.is_admin,
         is_first_login=user.is_first_login,
     )
+
+
+@router.put("/onboarding-complete")
+def onboarding_complete(
+    db: DbSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Mark user as onboarded (no longer first login)."""
+    user.is_first_login = False
+    db.commit()
+    return {"ok": True}

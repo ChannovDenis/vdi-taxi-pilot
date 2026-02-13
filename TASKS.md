@@ -447,7 +447,7 @@
 
 > Цель: production-ready деплой на Timeweb, покрытие тестами, PWA
 
-### S3-1. Onboarding: реальная привязка Telegram
+### S3-1. Onboarding: реальная привязка Telegram [DONE]
 
 | | |
 |---|---|
