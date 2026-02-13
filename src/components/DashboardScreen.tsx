@@ -116,7 +116,7 @@ const DashboardScreen = ({ onBook, onAdmin, onLogout, onProfile }: Props) => {
 
   // Booking modal state
   const [bookingSlot, setBookingSlot] = useState<string | null>(null);
-  const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
+  const [bookingDate, setBookingDate] = useState<Date | undefined>(new Date(2026, 1, 14));
   const [bookingTime, setBookingTime] = useState("10:00");
   const [bookingDuration, setBookingDuration] = useState("60");
 
@@ -276,7 +276,7 @@ const DashboardScreen = ({ onBook, onAdmin, onLogout, onProfile }: Props) => {
                           <Star className={cn("h-4 w-4", favorites.has(slot.id) && "fill-yellow-400 text-yellow-400")} />
                         </button>
                         {slot.available && (
-                          <button onClick={() => { setBookingSlot(slot.name); setBookingDate(undefined); }} className="p-1 text-muted-foreground transition-colors hover:text-primary">
+                          <button onClick={() => { setBookingSlot(slot.name); setBookingDate(new Date(2026, 1, 14)); }} className="p-1 text-muted-foreground transition-colors hover:text-primary">
                             <CalendarDays className="h-4 w-4" />
                           </button>
                         )}

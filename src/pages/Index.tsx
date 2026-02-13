@@ -5,12 +5,27 @@ import SessionScreen from "@/components/SessionScreen";
 import SessionEndScreen from "@/components/SessionEndScreen";
 import AdminScreen from "@/components/AdminScreen";
 import ProfileScreen from "@/components/ProfileScreen";
+import OnboardingScreen from "@/components/OnboardingScreen";
 
-type Screen = "login" | "dashboard" | "session" | "sessionEnd" | "admin" | "profile";
+type Screen = "login" | "onboarding" | "dashboard" | "session" | "sessionEnd" | "admin" | "profile";
 
 const Index = () => {
   const [screen, setScreen] = useState<Screen>("login");
   const [activeSlot, setActiveSlot] = useState("Perplexity Max #1");
+  const [firstLogin, setFirstLogin] = useState(true);
+
+  const handleLogin = () => {
+    if (firstLogin) {
+      setScreen("onboarding");
+    } else {
+      setScreen("dashboard");
+    }
+  };
+
+  const handleOnboardingComplete = () => {
+    setFirstLogin(false);
+    setScreen("dashboard");
+  };
 
   const handleBook = (slotName: string) => {
     setActiveSlot(slotName);
@@ -19,7 +34,9 @@ const Index = () => {
 
   switch (screen) {
     case "login":
-      return <LoginScreen onLogin={() => setScreen("dashboard")} />;
+      return <LoginScreen onLogin={handleLogin} />;
+    case "onboarding":
+      return <OnboardingScreen onComplete={handleOnboardingComplete} />;
     case "dashboard":
       return (
         <DashboardScreen
