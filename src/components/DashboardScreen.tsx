@@ -31,6 +31,7 @@ interface SlotFromApi {
   available: boolean;
   occupant_name: string | null;
   session_minutes: number | null;
+  queue_size: number;
 }
 
 interface Category {
@@ -196,8 +197,21 @@ const DashboardScreen = () => {
     favMutation.mutate(next);
   };
 
-  const handleQueue = (name: string) => {
-    toast({ title: "Вы в очереди", description: `Уведомим в Telegram когда ${name} освободится` });
+  // Queue mutation
+  const queueMutation = useMutation({
+    mutationFn: (slotId: string) => api.post<{ slot_id: string; position: number; total_in_queue: number }>(`/slots/${slotId}/queue`),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
+      const slotName = slots.find((s) => s.id === data.slot_id)?.service_name ?? data.slot_id;
+      toast({ title: "Вы в очереди", description: `Позиция ${data.position} для ${slotName}. Уведомим в Telegram.` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleQueue = (slotId: string) => {
+    queueMutation.mutate(slotId);
   };
 
   const handleBookingConfirm = () => {
@@ -301,7 +315,7 @@ const DashboardScreen = () => {
                 {favoriteSlots.map((slot) => (
                   <button
                     key={slot.id}
-                    onClick={() => slot.available ? onBook(slot.id) : handleQueue(slot.service_name)}
+                    onClick={() => slot.available ? onBook(slot.id) : handleQueue(slot.id)}
                     className="flex h-20 w-[140px] shrink-0 flex-col items-start justify-between rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/50"
                   >
                     <span className="text-xs font-medium text-foreground leading-tight line-clamp-2">{slot.service_name}</span>
@@ -381,7 +395,10 @@ const DashboardScreen = () => {
                         {slot.available ? (
                           <span className="text-[hsl(var(--success))]">Свободен</span>
                         ) : (
-                          <span className="text-muted-foreground">Занято: {slot.occupant_name} — {slot.session_minutes} мин</span>
+                          <span className="text-muted-foreground">
+                            Занято: {slot.occupant_name} — {slot.session_minutes} мин
+                            {slot.queue_size > 0 && ` · Очередь: ${slot.queue_size}`}
+                          </span>
                         )}
                       </div>
                       <div className="mt-3">
@@ -390,7 +407,9 @@ const DashboardScreen = () => {
                             Занять
                           </Button>
                         ) : (
-                          <Button size="sm" variant="secondary" onClick={() => handleQueue(slot.service_name)}>В очередь</Button>
+                          <Button size="sm" variant="secondary" onClick={() => handleQueue(slot.id)}>
+                            В очередь{slot.queue_size > 0 && ` (${slot.queue_size})`}
+                          </Button>
                         )}
                       </div>
                     </div>

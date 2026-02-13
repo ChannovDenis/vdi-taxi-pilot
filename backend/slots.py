@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from backend.database import get_db
 from backend.auth import get_current_user
-from backend.models import Slot, Session, User
+from backend.models import Slot, Session, User, QueueEntry
 
 router = APIRouter(prefix="/slots", tags=["slots"])
 
@@ -25,6 +25,7 @@ class SlotOut(BaseModel):
     available: bool
     occupant_name: str | None = None
     session_minutes: int | None = None
+    queue_size: int = 0
 
 
 class OccupyResponse(BaseModel):
@@ -54,6 +55,8 @@ def list_slots(db: DbSession = Depends(get_db), _user: User = Depends(get_curren
             elapsed = datetime.now(timezone.utc) - active_session.started_at.replace(tzinfo=timezone.utc)
             session_minutes = int(elapsed.total_seconds() / 60)
 
+        q_size = db.query(QueueEntry).filter(QueueEntry.slot_id == slot.id).count()
+
         result.append(SlotOut(
             id=slot.id,
             service_name=slot.service_name,
@@ -64,6 +67,7 @@ def list_slots(db: DbSession = Depends(get_db), _user: User = Depends(get_curren
             available=active_session is None,
             occupant_name=occupant_name,
             session_minutes=session_minutes,
+            queue_size=q_size,
         ))
     return result
 
@@ -122,6 +126,19 @@ def release_slot(
 
     active.ended_at = datetime.now(timezone.utc)
     active.end_reason = "manual"
+
+    # Notify first in queue (remove from queue — Telegram notification in S2-5)
+    first_in_queue = (
+        db.query(QueueEntry)
+        .filter(QueueEntry.slot_id == slot_id)
+        .order_by(QueueEntry.position)
+        .first()
+    )
+    next_user_name = None
+    if first_in_queue:
+        next_user_name = first_in_queue.user.name
+        db.delete(first_in_queue)
+
     db.commit()
 
-    return {"ok": True, "session_id": active.id}
+    return {"ok": True, "session_id": active.id, "next_in_queue": next_user_name}

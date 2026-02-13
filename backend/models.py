@@ -108,3 +108,16 @@ class UserFavorite(Base):
     slot_id = Column(String, ForeignKey("slots.id"), nullable=False)
 
     user = relationship("User", back_populates="favorites")
+
+
+class QueueEntry(Base):
+    __tablename__ = "queue_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    slot_id = Column(String, ForeignKey("slots.id"), nullable=False)
+    position = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    slot = relationship("Slot")
