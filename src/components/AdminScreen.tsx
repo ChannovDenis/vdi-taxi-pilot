@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import HealthTab from "@/components/admin/HealthTab";
+import ServicesTab from "@/components/admin/ServicesTab";
 
 interface Props {
   onBack: () => void;
@@ -27,19 +29,6 @@ const loadData = [
   { id: "gpt-1", pct: 51 },
   { id: "hf-1", pct: 11 },
   { id: "lov-1", pct: 15 },
-];
-
-const subscriptions = [
-  { service: "Perplexity Max #1", plan: "Max", cost: "$200", renewal: "15 фев 2026", status: "Активен" },
-  { service: "Perplexity Max #2", plan: "Max", cost: "$200", renewal: "15 фев 2026", status: "Активен" },
-  { service: "Perplexity Max #3", plan: "Max", cost: "$200", renewal: "15 фев 2026", status: "Активен" },
-  { service: "Gemini Ultra — Deep Think", plan: "Ultra", cost: "$250", renewal: "20 фев 2026", status: "Активен" },
-  { service: "Nano Banana Pro", plan: "Pro", cost: "$200", renewal: "20 фев 2026", status: "Активен" },
-  { service: "Veo + Flow", plan: "Ultra", cost: "$250", renewal: "20 фев 2026", status: "Активен" },
-  { service: "NotebookLM + Drive", plan: "Ultra", cost: "$250", renewal: "20 фев 2026", status: "Активен" },
-  { service: "ChatGPT Pro — o3-pro", plan: "Pro", cost: "$200", renewal: "10 фев 2026", status: "Активен" },
-  { service: "Higgsfield Ultimate", plan: "Ultimate", cost: "$99", renewal: "01 мар 2026", status: "Активен" },
-  { service: "Lovable Team", plan: "Team", cost: "$100", renewal: "01 мар 2026", status: "Активен" },
 ];
 
 const users = [
@@ -106,9 +95,10 @@ const AdminScreen = ({ onBack }: Props) => {
         <Tabs defaultValue="load">
           <TabsList className="bg-card flex-wrap">
             <TabsTrigger value="load">Загрузка</TabsTrigger>
-            <TabsTrigger value="subs">Подписки</TabsTrigger>
+            <TabsTrigger value="subs">Сервисы</TabsTrigger>
             <TabsTrigger value="users">Пользователи</TabsTrigger>
             <TabsTrigger value="templates">Шаблоны</TabsTrigger>
+            <TabsTrigger value="health">Здоровье</TabsTrigger>
           </TabsList>
 
           {/* Load tab */}
@@ -130,32 +120,9 @@ const AdminScreen = ({ onBack }: Props) => {
             <p className="text-sm text-muted-foreground">Очереди за неделю: 4 (avg 6 мин)</p>
           </TabsContent>
 
-          {/* Subscriptions tab */}
-          <TabsContent value="subs" className="pt-4">
-            <div className="rounded-xl border bg-card overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Сервис</TableHead>
-                    <TableHead>Тариф</TableHead>
-                    <TableHead>$/мес</TableHead>
-                    <TableHead>Следующее списание</TableHead>
-                    <TableHead>Статус</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {subscriptions.map((s, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{s.service}</TableCell>
-                      <TableCell>{s.plan}</TableCell>
-                      <TableCell>{s.cost}</TableCell>
-                      <TableCell>{s.renewal}</TableCell>
-                      <TableCell className="text-[hsl(var(--success))]">{s.status}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+          {/* Services tab */}
+          <TabsContent value="subs">
+            <ServicesTab />
           </TabsContent>
 
           {/* Users tab */}
@@ -209,6 +176,11 @@ const AdminScreen = ({ onBack }: Props) => {
               </Table>
             </div>
             <Button onClick={() => setShowCreate(true)}>+ Создать шаблон</Button>
+          </TabsContent>
+
+          {/* Health tab */}
+          <TabsContent value="health">
+            <HealthTab />
           </TabsContent>
         </Tabs>
       </div>

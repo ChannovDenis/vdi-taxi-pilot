@@ -53,6 +53,24 @@ const ProfileScreen = ({ onBack }: Props) => {
 
         <h1 className="text-2xl font-bold">Профиль</h1>
 
+        {/* Contact details */}
+        <section>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">Контактные данные</h2>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Telegram username</label>
+              <input
+                className="mt-1 flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                placeholder="@username"
+                defaultValue="@anna"
+              />
+            </div>
+            <Button size="sm" onClick={() => toast({ title: "Сохранено", description: "Контактные данные обновлены" })}>
+              Сохранить
+            </Button>
+          </div>
+        </section>
+
         {/* Favorites */}
         <section>
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">★ Мои избранные сервисы</h2>
