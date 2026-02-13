@@ -352,7 +352,7 @@
 
 ---
 
-### S2-4. Session Dump скрипт
+### S2-4. Session Dump скрипт [DONE] (SSH transfer BLOCKED: нужен SSH-ключ к VM)
 
 | | |
 |---|---|
