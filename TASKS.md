@@ -302,7 +302,7 @@
 
 > Цель: пользователь получает реальный VDI-доступ и Telegram-уведомления
 
-### S2-1. Docker Compose: FastAPI + Guacamole + guacd
+### S2-1. Docker Compose: FastAPI + Guacamole + guacd [DONE]
 
 | | |
 |---|---|
