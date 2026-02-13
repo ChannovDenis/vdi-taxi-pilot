@@ -76,10 +76,10 @@ const SessionScreen = () => {
 
   // Release mutation
   const releaseMutation = useMutation({
-    mutationFn: () => api.post(`/slots/${slotId}/release`),
-    onSuccess: () => {
+    mutationFn: () => api.post<{ ok: boolean; session_id: number }>(`/slots/${slotId}/release`),
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["slots"] });
-      navigate(`/session/${slotId}/end`);
+      navigate(`/session/${slotId}/end?sid=${data.session_id}`);
     },
   });
 

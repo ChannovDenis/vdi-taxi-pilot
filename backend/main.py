@@ -11,6 +11,7 @@ from backend.bookings import router as bookings_router
 from backend.queue import router as queue_router
 from backend.templates import router as templates_router
 from backend.admin import router as admin_router
+from backend.sessions import router as sessions_router
 
 # Create tables on startup
 Base.metadata.create_all(bind=engine)
@@ -34,6 +35,7 @@ app.include_router(bookings_router, prefix="/api")
 app.include_router(queue_router, prefix="/api")
 app.include_router(templates_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(sessions_router, prefix="/api")
 
 
 @app.get("/api/health")
