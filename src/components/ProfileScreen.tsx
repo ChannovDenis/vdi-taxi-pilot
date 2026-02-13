@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Clock, FileText } from "lucide-react";
+import { ArrowLeft, Clock, FileText, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface SlotFromApi {
@@ -131,12 +131,19 @@ const ProfileScreen = () => {
           <div className="space-y-3">
             <div>
               <label className="text-xs text-muted-foreground">Telegram username</label>
-              <input
-                className="mt-1 flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                placeholder="@username"
-                value={telegram}
-                onChange={(e) => { setLocalTelegram(e.target.value); setTgError(""); }}
-              />
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  placeholder="@username"
+                  value={telegram}
+                  onChange={(e) => { setLocalTelegram(e.target.value); setTgError(""); }}
+                />
+                {profile?.telegram_id && !localTelegram && (
+                  <span className="flex items-center gap-1 text-xs text-[hsl(var(--success))]">
+                    <CheckCircle className="h-4 w-4" /> Привязан
+                  </span>
+                )}
+              </div>
               {tgError && <p className="mt-1 text-xs text-destructive">{tgError}</p>}
             </div>
             <Button size="sm" onClick={handleSaveTelegram} disabled={saveMutation.isPending}>
