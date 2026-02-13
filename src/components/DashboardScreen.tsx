@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
@@ -17,78 +19,59 @@ import {
   Pencil, Search, Video, BarChart3, Menu, X, User,
 } from "lucide-react";
 
-/* ───── Data ───── */
+/* ───── Types ───── */
 
-interface Slot {
+interface SlotFromApi {
   id: string;
-  name: string;
+  service_name: string;
+  tier: string | null;
+  category: string;
+  category_accent: string;
+  monthly_cost: number;
   available: boolean;
-  occupant?: string;
-  minutes?: number;
+  occupant_name: string | null;
+  session_minutes: number | null;
 }
 
 interface Category {
   title: string;
   accent: string;
-  slots: Slot[];
+  slots: SlotFromApi[];
 }
 
-const categories: Category[] = [
-  {
-    title: "РЕСЕРЧ",
-    accent: "#3b82f6",
-    slots: [
-      { id: "ppx-1", name: "Perplexity Max #1", available: true },
-      { id: "ppx-2", name: "Perplexity Max #2", available: false, occupant: "Иван", minutes: 12 },
-      { id: "ppx-3", name: "Perplexity Max #3", available: true },
-    ],
-  },
-  {
-    title: "GOOGLE AI",
-    accent: "#4285f4",
-    slots: [
-      { id: "gem-dt", name: "Gemini Ultra — Deep Think", available: true },
-      { id: "nbp", name: "Nano Banana Pro", available: true },
-      { id: "veo", name: "Veo + Flow (видео)", available: false, occupant: "Олег", minutes: 45 },
-      { id: "nb-drive", name: "NotebookLM + Drive", available: true },
-    ],
-  },
-  {
-    title: "REASONING",
-    accent: "#8b5cf6",
-    slots: [
-      { id: "gpt-1", name: "ChatGPT Pro — o3-pro", available: true },
-    ],
-  },
-  {
-    title: "ВИДЕО",
-    accent: "#a855f7",
-    slots: [
-      { id: "hf-1", name: "Higgsfield Ultimate", available: true },
-    ],
-  },
-  {
-    title: "КОД",
-    accent: "#f97316",
-    slots: [
-      { id: "lov-1", name: "Lovable Team", available: true },
-    ],
-  },
-];
+interface OccupyResponse {
+  session_id: number;
+  slot_id: string;
+  started_at: string;
+  guacamole_url: string;
+}
 
-const allSlots = categories.flatMap((c) => c.slots);
+/* ───── Helpers ───── */
+
+function groupByCategory(slots: SlotFromApi[]): Category[] {
+  const map = new Map<string, Category>();
+  for (const s of slots) {
+    if (!map.has(s.category)) {
+      map.set(s.category, { title: s.category, accent: s.category_accent, slots: [] });
+    }
+    map.get(s.category)!.slots.push(s);
+  }
+  return Array.from(map.values());
+}
+
+/* ───── Static data (templates — will be from API in S1-4) ───── */
 
 interface Template {
   icon: React.ReactNode;
   name: string;
   description: string;
-  slotNames: string[];
+  slotIds: string[];
 }
 
 const templates: Template[] = [
-  { icon: <Search className="h-5 w-5" />, name: "Ресерч конкурентов", description: "Perplexity Max + NotebookLM", slotNames: ["Perplexity Max #1", "NotebookLM + Drive"] },
-  { icon: <Video className="h-5 w-5" />, name: "Создание видео", description: "Veo + Flow + Higgsfield", slotNames: ["Veo + Flow (видео)", "Higgsfield Ultimate"] },
-  { icon: <BarChart3 className="h-5 w-5" />, name: "Подготовка презентации", description: "Gemini NB + Nano Banana Pro", slotNames: ["NotebookLM + Drive", "Nano Banana Pro"] },
+  { icon: <Search className="h-5 w-5" />, name: "Ресерч конкурентов", description: "Perplexity Max + NotebookLM", slotIds: ["ppx-1", "nb-drive"] },
+  { icon: <Video className="h-5 w-5" />, name: "Создание видео", description: "Veo + Flow + Higgsfield", slotIds: ["gem-veo", "hf-1"] },
+  { icon: <BarChart3 className="h-5 w-5" />, name: "Подготовка презентации", description: "Gemini NB + Nano Banana Pro", slotIds: ["nb-drive", "nbp"] },
 ];
 
 const defaultFavorites = new Set(["ppx-1", "nb-drive"]);
@@ -106,12 +89,33 @@ const DashboardScreen = () => {
   const { user, logout, isAdmin } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const userName = user?.name ?? "Пользователь";
   const userInitial = userName.charAt(0).toUpperCase();
 
-  const onBook = (slotName: string) => {
-    const slot = allSlots.find((s) => s.name === slotName);
-    if (slot) navigate(`/session/${slot.id}`);
+  // Fetch slots from API
+  const { data: slots = [], isLoading: slotsLoading } = useQuery<SlotFromApi[]>({
+    queryKey: ["slots"],
+    queryFn: () => api.get<SlotFromApi[]>("/slots"),
+    refetchInterval: 30_000, // poll every 30s
+  });
+
+  const categories = groupByCategory(slots);
+
+  // Occupy mutation
+  const occupyMutation = useMutation({
+    mutationFn: (slotId: string) => api.post<OccupyResponse>(`/slots/${slotId}/occupy`),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
+      navigate(`/session/${data.slot_id}`);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const onBook = (slotId: string) => {
+    occupyMutation.mutate(slotId);
   };
   const onAdmin = () => navigate("/admin");
   const onLogout = () => { logout(); navigate("/login"); };
@@ -121,7 +125,7 @@ const DashboardScreen = () => {
 
   // Booking modal state
   const [bookingSlot, setBookingSlot] = useState<string | null>(null);
-  const [bookingDate, setBookingDate] = useState<Date | undefined>(new Date(2026, 1, 14));
+  const [bookingDate, setBookingDate] = useState<Date | undefined>(new Date());
   const [bookingTime, setBookingTime] = useState("10:00");
   const [bookingDuration, setBookingDuration] = useState("60");
 
@@ -147,11 +151,21 @@ const DashboardScreen = () => {
   };
 
   const handleTemplateLaunch = (t: Template) => {
-    toast({ title: `Занимаю ${t.slotNames.length} слота`, description: `${t.slotNames.join(" + ")}... Подключение...` });
-    setTimeout(() => onBook(t.slotNames[0]), 600);
+    toast({ title: `Занимаю ${t.slotIds.length} слота`, description: "Подключение..." });
+    occupyMutation.mutate(t.slotIds[0]);
   };
 
-  const favoriteSlots = allSlots.filter((s) => favorites.has(s.id));
+  const favoriteSlots = slots.filter((s) => favorites.has(s.id));
+
+  // Stats: count available/total per category
+  const statsText = categories
+    .map((c) => {
+      const total = c.slots.length;
+      const used = c.slots.filter((s) => !s.available).length;
+      const pct = total > 0 ? Math.round((used / total) * 100) : 0;
+      return `${c.title} ${pct}%`;
+    })
+    .join(" | ");
 
   return (
     <div className="min-h-screen bg-background">
@@ -204,38 +218,45 @@ const DashboardScreen = () => {
 
       {/* Content */}
       <main className="mx-auto max-w-5xl space-y-8 p-4 md:p-6">
+        {/* Loading */}
+        {slotsLoading && (
+          <div className="text-center text-sm text-muted-foreground py-8">Загрузка слотов...</div>
+        )}
+
         {/* Zone 1: Favorites */}
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              <Star className="h-3.5 w-3.5 fill-current" /> Мои избранные
-            </h2>
-            <button onClick={onProfile} className="flex items-center gap-1 text-xs text-primary hover:underline">
-              <Pencil className="h-3 w-3" /> Редактировать
-            </button>
-          </div>
-          {favoriteSlots.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Добавьте избранные сервисы нажав ★ на карточке</p>
-          ) : (
-            <div className="flex gap-3 overflow-x-auto pb-1">
-              {favoriteSlots.map((slot) => (
-                <button
-                  key={slot.id}
-                  onClick={() => slot.available ? onBook(slot.name) : handleQueue(slot.name)}
-                  className="flex h-20 w-[140px] shrink-0 flex-col items-start justify-between rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/50"
-                >
-                  <span className="text-xs font-medium text-foreground leading-tight line-clamp-2">{slot.name}</span>
-                  <span className="flex items-center gap-1 text-[10px]">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: slot.available ? "hsl(var(--success))" : "hsl(var(--destructive))" }} />
-                    <span className={slot.available ? "text-[hsl(var(--success))]" : "text-muted-foreground"}>
-                      {slot.available ? "Свободен" : "Занят"}
-                    </span>
-                  </span>
-                </button>
-              ))}
+        {!slotsLoading && (
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                <Star className="h-3.5 w-3.5 fill-current" /> Мои избранные
+              </h2>
+              <button onClick={onProfile} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                <Pencil className="h-3 w-3" /> Редактировать
+              </button>
             </div>
-          )}
-        </section>
+            {favoriteSlots.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Добавьте избранные сервисы нажав ★ на карточке</p>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {favoriteSlots.map((slot) => (
+                  <button
+                    key={slot.id}
+                    onClick={() => slot.available ? onBook(slot.id) : handleQueue(slot.service_name)}
+                    className="flex h-20 w-[140px] shrink-0 flex-col items-start justify-between rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/50"
+                  >
+                    <span className="text-xs font-medium text-foreground leading-tight line-clamp-2">{slot.service_name}</span>
+                    <span className="flex items-center gap-1 text-[10px]">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: slot.available ? "hsl(var(--success))" : "hsl(var(--destructive))" }} />
+                      <span className={slot.available ? "text-[hsl(var(--success))]" : "text-muted-foreground"}>
+                        {slot.available ? "Свободен" : "Занят"}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Zone 2: Templates */}
         <section>
@@ -262,67 +283,78 @@ const DashboardScreen = () => {
         </section>
 
         {/* Zone 3: All Services */}
-        <section className="space-y-8">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Все сервисы
-          </h2>
-          {categories.map((cat) => (
-            <div key={cat.title}>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest" style={{ color: cat.accent }}>
-                {cat.title}
-              </h3>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {cat.slots.map((slot) => (
-                  <div
-                    key={slot.id}
-                    className="rounded-xl border bg-card p-4"
-                    style={{ borderLeftWidth: 4, borderLeftColor: slot.available ? "hsl(var(--success))" : "hsl(var(--destructive))" }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <h4 className="font-medium text-foreground text-sm">{slot.name}</h4>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => toggleFavorite(slot.id)} className="p-1 text-muted-foreground transition-colors hover:text-yellow-400">
-                          <Star className={cn("h-4 w-4", favorites.has(slot.id) && "fill-yellow-400 text-yellow-400")} />
-                        </button>
-                        {slot.available && (
-                          <button onClick={() => { setBookingSlot(slot.name); setBookingDate(new Date(2026, 1, 14)); }} className="p-1 text-muted-foreground transition-colors hover:text-primary">
-                            <CalendarDays className="h-4 w-4" />
+        {!slotsLoading && (
+          <section className="space-y-8">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Все сервисы
+            </h2>
+            {categories.map((cat) => (
+              <div key={cat.title}>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest" style={{ color: cat.accent }}>
+                  {cat.title}
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {cat.slots.map((slot) => (
+                    <div
+                      key={slot.id}
+                      className="rounded-xl border bg-card p-4"
+                      style={{ borderLeftWidth: 4, borderLeftColor: slot.available ? "hsl(var(--success))" : "hsl(var(--destructive))" }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <h4 className="font-medium text-foreground text-sm">{slot.service_name}</h4>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => toggleFavorite(slot.id)} className="p-1 text-muted-foreground transition-colors hover:text-yellow-400">
+                            <Star className={cn("h-4 w-4", favorites.has(slot.id) && "fill-yellow-400 text-yellow-400")} />
                           </button>
+                          {slot.available && (
+                            <button onClick={() => { setBookingSlot(slot.service_name); setBookingDate(new Date()); }} className="p-1 text-muted-foreground transition-colors hover:text-primary">
+                              <CalendarDays className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button onClick={() => setTutorialSlot(slot.service_name)} className="p-1 text-muted-foreground transition-colors hover:text-primary">
+                            <HelpCircle className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5 text-sm">
+                        <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: slot.available ? "hsl(var(--success))" : "hsl(var(--destructive))" }} />
+                        {slot.available ? (
+                          <span className="text-[hsl(var(--success))]">Свободен</span>
+                        ) : (
+                          <span className="text-muted-foreground">Занято: {slot.occupant_name} — {slot.session_minutes} мин</span>
                         )}
-                        <button onClick={() => setTutorialSlot(slot.name)} className="p-1 text-muted-foreground transition-colors hover:text-primary">
-                          <HelpCircle className="h-4 w-4" />
-                        </button>
+                      </div>
+                      <div className="mt-3">
+                        {slot.available ? (
+                          <Button size="sm" onClick={() => onBook(slot.id)} disabled={occupyMutation.isPending}>
+                            Занять
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="secondary" onClick={() => handleQueue(slot.service_name)}>В очередь</Button>
+                        )}
                       </div>
                     </div>
-                    <div className="mt-1 flex items-center gap-1.5 text-sm">
-                      <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: slot.available ? "hsl(var(--success))" : "hsl(var(--destructive))" }} />
-                      {slot.available ? (
-                        <span className="text-[hsl(var(--success))]">Свободен</span>
-                      ) : (
-                        <span className="text-muted-foreground">Занято: {slot.occupant} — {slot.minutes} мин</span>
-                      )}
-                    </div>
-                    <div className="mt-3">
-                      {slot.available ? (
-                        <Button size="sm" onClick={() => onBook(slot.name)}>Занять</Button>
-                      ) : (
-                        <Button size="sm" variant="secondary" onClick={() => handleQueue(slot.name)}>В очередь</Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </section>
+            ))}
+          </section>
+        )}
 
         {/* Stats bar */}
-        <div className="rounded-xl border bg-card px-4 py-3 text-sm text-muted-foreground">
-          Загрузка сегодня: <span className="text-foreground">PPX 62%</span> |{" "}
-          <span className="text-foreground">Gemini 41%</span> |{" "}
-          <span className="text-foreground">GPT 28%</span> |{" "}
-          <span className="text-foreground">HF 11%</span>
-        </div>
+        {!slotsLoading && slots.length > 0 && (
+          <div className="rounded-xl border bg-card px-4 py-3 text-sm text-muted-foreground">
+            Загрузка сегодня:{" "}
+            {categories.map((c, i) => (
+              <span key={c.title}>
+                {i > 0 && " | "}
+                <span className="text-foreground">
+                  {c.title} {Math.round((c.slots.filter((s) => !s.available).length / c.slots.length) * 100)}%
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Booking Modal */}

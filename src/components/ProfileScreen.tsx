@@ -1,22 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const allServices = [
-  { id: "ppx-1", name: "Perplexity Max #1" },
-  { id: "ppx-2", name: "Perplexity Max #2" },
-  { id: "ppx-3", name: "Perplexity Max #3" },
-  { id: "gem-dt", name: "Gemini Ultra — Deep Think" },
-  { id: "nbp", name: "Nano Banana Pro" },
-  { id: "veo", name: "Veo + Flow (видео)" },
-  { id: "nb-drive", name: "NotebookLM + Drive" },
-  { id: "gpt-1", name: "ChatGPT Pro — o3-pro" },
-  { id: "hf-1", name: "Higgsfield Ultimate" },
-];
+interface SlotFromApi {
+  id: string;
+  service_name: string;
+}
 
 const defaultChecked = new Set(["ppx-1", "nb-drive"]);
 
@@ -34,6 +29,12 @@ const ProfileScreen = () => {
   const { toast } = useToast();
   const [checked, setChecked] = useState<Set<string>>(new Set(defaultChecked));
   const [videoModal, setVideoModal] = useState<string | null>(null);
+
+  // Fetch slots from API (same source as Dashboard)
+  const { data: slots = [] } = useQuery<SlotFromApi[]>({
+    queryKey: ["slots"],
+    queryFn: () => api.get<SlotFromApi[]>("/slots"),
+  });
 
   const toggle = (id: string) => {
     setChecked((prev) => {
@@ -74,10 +75,10 @@ const ProfileScreen = () => {
         <section>
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">★ Мои избранные сервисы</h2>
           <div className="space-y-3">
-            {allServices.map((s) => (
+            {slots.map((s) => (
               <label key={s.id} className="flex items-center gap-3 cursor-pointer">
                 <Checkbox checked={checked.has(s.id)} onCheckedChange={() => toggle(s.id)} />
-                <span className="text-sm text-foreground">{s.name}</span>
+                <span className="text-sm text-foreground">{s.service_name}</span>
               </label>
             ))}
           </div>

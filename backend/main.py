@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.database import engine, Base
 from backend.auth import router as auth_router
+from backend.slots import router as slots_router
 
 # Create tables on startup
 Base.metadata.create_all(bind=engine)
@@ -22,6 +23,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(auth_router, prefix="/api")
+app.include_router(slots_router, prefix="/api")
 
 
 @app.get("/api/health")
