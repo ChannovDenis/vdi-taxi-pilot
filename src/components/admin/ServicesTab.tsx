@@ -267,11 +267,14 @@ const ServicesTab = () => {
                   {s.is_active ? "Активен" : "Отключён"}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => openEdit(s)} className="text-muted-foreground hover:text-foreground">
-                      <Pencil className="h-4 w-4" />
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => openEdit(s)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                      <Pencil className="h-3.5 w-3.5" /> Редактировать
                     </button>
-                    <Switch checked={s.is_active} onCheckedChange={() => toggleActive(s)} />
+                    <div className="flex items-center gap-1.5">
+                      <Switch checked={s.is_active} onCheckedChange={() => toggleActive(s)} />
+                      <span className="text-xs text-muted-foreground">{s.is_active ? "Вкл" : "Выкл"}</span>
+                    </div>
                   </div>
                 </TableCell>
               </TableRow>
