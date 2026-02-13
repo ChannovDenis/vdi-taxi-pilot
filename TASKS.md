@@ -319,7 +319,7 @@
 
 ---
 
-### S2-2. SessionScreen: Guacamole iframe вместо placeholder
+### S2-2. SessionScreen: Guacamole iframe вместо placeholder [DONE]
 
 | | |
 |---|---|

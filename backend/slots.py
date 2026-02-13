@@ -32,7 +32,7 @@ class OccupyResponse(BaseModel):
     session_id: int
     slot_id: str
     started_at: str
-    guacamole_url: str  # placeholder for now
+    guacamole_url: str
 
 
 # ── Endpoints ──
@@ -98,11 +98,14 @@ def occupy_slot(
     db.commit()
     db.refresh(session)
 
+    # Build Guacamole URL — placeholder until Docker Guacamole is running
+    guac_url = f"/guacamole/#/client/{slot_id}"
+
     return OccupyResponse(
         session_id=session.id,
         slot_id=slot_id,
         started_at=session.started_at.isoformat(),
-        guacamole_url=f"/guacamole/#/client/{slot_id}",  # placeholder
+        guacamole_url=guac_url,
     )
 
 
