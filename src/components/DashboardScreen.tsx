@@ -406,11 +406,9 @@ const DashboardScreen = () => {
                           <button onClick={() => toggleFavorite(slot.id)} className="p-1 text-muted-foreground transition-colors hover:text-yellow-400">
                             <Star className={cn("h-4 w-4", favorites.has(slot.id) && "fill-yellow-400 text-yellow-400")} />
                           </button>
-                          {slot.available && (
-                            <button onClick={() => { setBookingSlotId(slot.id); setBookingDate(new Date()); }} className="p-1 text-muted-foreground transition-colors hover:text-primary">
-                              <CalendarDays className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button onClick={() => { setBookingSlotId(slot.id); setBookingDate(new Date()); }} className="p-1 text-muted-foreground transition-colors hover:text-primary" title="Забронировать">
+                            <CalendarDays className="h-4 w-4" />
+                          </button>
                           <button onClick={() => setTutorialSlot(slot.service_name)} className="p-1 text-muted-foreground transition-colors hover:text-primary">
                             <HelpCircle className="h-4 w-4" />
                           </button>
