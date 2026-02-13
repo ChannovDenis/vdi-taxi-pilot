@@ -85,7 +85,7 @@
 
 ---
 
-### S0-4. FastAPI backend — skeleton + auth
+### S0-4. FastAPI backend — skeleton + auth [DONE]
 
 | | |
 |---|---|
