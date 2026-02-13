@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSlotsWebSocket } from "@/hooks/use-slots-ws";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
@@ -103,6 +104,9 @@ const DashboardScreen = () => {
   const queryClient = useQueryClient();
   const userName = user?.name ?? "Пользователь";
   const userInitial = userName.charAt(0).toUpperCase();
+
+  // Real-time slot updates via WebSocket (falls back to polling)
+  useSlotsWebSocket();
 
   // Fetch slots from API
   const { data: slots = [], isLoading: slotsLoading } = useQuery<SlotFromApi[]>({

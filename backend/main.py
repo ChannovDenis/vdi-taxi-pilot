@@ -13,6 +13,7 @@ from backend.templates import router as templates_router
 from backend.admin import router as admin_router
 from backend.sessions import router as sessions_router
 from backend.health import router as health_router
+from backend.websocket import router as ws_router
 
 # Create tables on startup
 Base.metadata.create_all(bind=engine)
@@ -38,6 +39,7 @@ app.include_router(templates_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(sessions_router, prefix="/api")
 app.include_router(health_router, prefix="/api")
+app.include_router(ws_router, prefix="/api")
 
 
 @app.get("/api/health")

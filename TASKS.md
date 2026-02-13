@@ -423,7 +423,7 @@
 
 ---
 
-### S2-8. WebSocket: real-time статус слотов
+### S2-8. WebSocket: real-time статус слотов [DONE]
 
 | | |
 |---|---|

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session as DbSession
 from backend.database import get_db
 from backend.auth import get_current_user
 from backend.models import Slot, Session, User, QueueEntry
+from backend.websocket import broadcast_sync
 
 router = APIRouter(prefix="/slots", tags=["slots"])
 
@@ -101,6 +102,12 @@ def occupy_slot(
     # Build Guacamole URL — placeholder until Docker Guacamole is running
     guac_url = f"/guacamole/#/client/{slot_id}"
 
+    # Broadcast to WebSocket clients
+    broadcast_sync("slot_occupied", {
+        "slot_id": slot_id,
+        "occupant_name": user.name,
+    })
+
     return OccupyResponse(
         session_id=session.id,
         slot_id=slot_id,
@@ -143,5 +150,11 @@ def release_slot(
         db.delete(first_in_queue)
 
     db.commit()
+
+    # Broadcast to WebSocket clients
+    broadcast_sync("slot_released", {
+        "slot_id": slot_id,
+        "next_in_queue": next_user_name,
+    })
 
     return {"ok": True, "session_id": active.id, "next_in_queue": next_user_name}
