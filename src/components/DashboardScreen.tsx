@@ -46,6 +46,12 @@ interface OccupyResponse {
   guacamole_url: string;
 }
 
+interface ProfileData {
+  id: number;
+  name: string;
+  favorites: string[];
+}
+
 /* ───── Helpers ───── */
 
 function groupByCategory(slots: SlotFromApi[]): Category[] {
@@ -73,8 +79,6 @@ const templates: Template[] = [
   { icon: <Video className="h-5 w-5" />, name: "Создание видео", description: "Veo + Flow + Higgsfield", slotIds: ["gem-veo", "hf-1"] },
   { icon: <BarChart3 className="h-5 w-5" />, name: "Подготовка презентации", description: "Gemini NB + Nano Banana Pro", slotIds: ["nb-drive", "nbp"] },
 ];
-
-const defaultFavorites = new Set(["ppx-1", "nb-drive"]);
 
 const timeSlots = Array.from({ length: 19 }, (_, i) => {
   const h = Math.floor(i / 2) + 9;
@@ -114,13 +118,27 @@ const DashboardScreen = () => {
     },
   });
 
+  // Fetch profile (favorites)
+  const { data: profile } = useQuery<ProfileData>({
+    queryKey: ["profile"],
+    queryFn: () => api.get<ProfileData>("/profile"),
+  });
+  const favorites = new Set(profile?.favorites ?? []);
+
+  // Toggle favorite mutation
+  const favMutation = useMutation({
+    mutationFn: (newFavs: string[]) => api.put<ProfileData>("/profile", { favorites: newFavs }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+
   const onBook = (slotId: string) => {
     occupyMutation.mutate(slotId);
   };
   const onAdmin = () => navigate("/admin");
   const onLogout = () => { logout(); navigate("/login"); };
   const onProfile = () => navigate("/profile");
-  const [favorites, setFavorites] = useState<Set<string>>(new Set(defaultFavorites));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Booking modal state
@@ -133,12 +151,9 @@ const DashboardScreen = () => {
   const [tutorialSlot, setTutorialSlot] = useState<string | null>(null);
 
   const toggleFavorite = (id: string) => {
-    setFavorites((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    const current = profile?.favorites ?? [];
+    const next = current.includes(id) ? current.filter((f) => f !== id) : [...current, id];
+    favMutation.mutate(next);
   };
 
   const handleQueue = (name: string) => {
