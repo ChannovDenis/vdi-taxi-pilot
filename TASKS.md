@@ -68,7 +68,7 @@
 
 ---
 
-### S0-3. Глобальное состояние (AuthContext + react-query)
+### S0-3. Глобальное состояние (AuthContext + react-query) [DONE]
 
 | | |
 |---|---|

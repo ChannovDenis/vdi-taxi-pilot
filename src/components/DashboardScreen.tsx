@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
@@ -102,15 +103,18 @@ const timeSlots = Array.from({ length: 19 }, (_, i) => {
 
 const DashboardScreen = () => {
   const navigate = useNavigate();
+  const { user, logout, isAdmin } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const userName = user?.name ?? "Пользователь";
+  const userInitial = userName.charAt(0).toUpperCase();
 
   const onBook = (slotName: string) => {
     const slot = allSlots.find((s) => s.name === slotName);
     if (slot) navigate(`/session/${slot.id}`);
   };
   const onAdmin = () => navigate("/admin");
-  const onLogout = () => navigate("/login");
+  const onLogout = () => { logout(); navigate("/login"); };
   const onProfile = () => navigate("/profile");
   const [favorites, setFavorites] = useState<Set<string>>(new Set(defaultFavorites));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -164,13 +168,15 @@ const DashboardScreen = () => {
           </button>
         ) : (
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">Привет, Анна</span>
+            <span className="text-sm text-muted-foreground">Привет, {userName}</span>
             <button onClick={onProfile} className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground transition-opacity hover:opacity-80">
-              А
+              {userInitial}
             </button>
-            <button onClick={onAdmin} className="text-muted-foreground transition-colors hover:text-foreground">
-              <Settings className="h-5 w-5" />
-            </button>
+            {isAdmin && (
+              <button onClick={onAdmin} className="text-muted-foreground transition-colors hover:text-foreground">
+                <Settings className="h-5 w-5" />
+              </button>
+            )}
             <button onClick={onLogout} className="text-muted-foreground transition-colors hover:text-foreground">
               <LogOut className="h-5 w-5" />
             </button>
@@ -181,13 +187,15 @@ const DashboardScreen = () => {
       {/* Mobile menu */}
       {isMobile && mobileMenuOpen && (
         <div className="border-b bg-card px-4 py-3 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">Привет, Анна</div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">Привет, {userName}</div>
           <button onClick={() => { onProfile(); setMobileMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-accent">
             <User className="h-4 w-4" /> Профиль
           </button>
-          <button onClick={() => { onAdmin(); setMobileMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-accent">
-            <Settings className="h-4 w-4" /> Админ-панель
-          </button>
+          {isAdmin && (
+            <button onClick={() => { onAdmin(); setMobileMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-accent">
+              <Settings className="h-4 w-4" /> Админ-панель
+            </button>
+          )}
           <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-destructive hover:bg-accent">
             <LogOut className="h-4 w-4" /> Выйти
           </button>
