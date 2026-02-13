@@ -369,7 +369,7 @@
 
 ---
 
-### S2-5. Telegram Bot: базовый
+### S2-5. Telegram Bot: базовый [DONE — код готов, BLOCKED: нужен токен]
 
 | | |
 |---|---|
@@ -388,7 +388,7 @@
 
 ---
 
-### S2-6. Telegram Bot: admin-команды
+### S2-6. Telegram Bot: admin-команды [DONE — код готов, BLOCKED: нужен токен]
 
 | | |
 |---|---|
