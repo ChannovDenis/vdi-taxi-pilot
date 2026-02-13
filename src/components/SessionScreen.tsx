@@ -116,17 +116,17 @@ const SessionScreen = () => {
   return (
     <div className="relative flex min-h-screen flex-col bg-[hsl(220,20%,8%)]">
       {/* Top overlay bar */}
-      <div className="flex h-12 items-center justify-between bg-background/80 px-4 backdrop-blur z-10">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[hsl(var(--success))] animate-pulse-dot" />
-          {slotName}
+      <div className="flex h-14 md:h-12 items-center justify-between bg-background/80 px-4 backdrop-blur z-10">
+        <div className="flex items-center gap-2 text-sm font-medium truncate max-w-[30%]">
+          <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[hsl(var(--success))] animate-pulse-dot" />
+          <span className="truncate">{slotName}</span>
         </div>
         <span className="font-mono text-sm text-muted-foreground">{formatElapsed(elapsed)}</span>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" onClick={toggleFullscreen} className="md:h-9 h-12 px-2">
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          <Button size="sm" variant="ghost" onClick={toggleFullscreen} className="md:h-9 h-12 w-12 md:w-auto px-2">
+            {isFullscreen ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" /> : <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />}
           </Button>
-          <Button size="sm" variant="destructive" onClick={() => setShowConfirm(true)} className="md:h-9 h-12">
+          <Button size="sm" variant="destructive" onClick={() => setShowConfirm(true)} className="md:h-9 h-12 text-base md:text-sm px-4 md:px-3 font-semibold">
             Освободить
           </Button>
         </div>

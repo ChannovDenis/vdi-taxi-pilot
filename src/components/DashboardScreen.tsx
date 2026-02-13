@@ -437,7 +437,7 @@ const DashboardScreen = () => {
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest" style={{ color: cat.accent }}>
                   {cat.title}
                 </h3>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {cat.slots.map((slot) => (
                     <div
                       key={slot.id}
@@ -471,11 +471,11 @@ const DashboardScreen = () => {
                       </div>
                       <div className="mt-3">
                         {slot.available ? (
-                          <Button size="sm" onClick={() => onBook(slot.id)} disabled={occupyMutation.isPending}>
+                          <Button size="sm" className="w-full md:w-auto" onClick={() => onBook(slot.id)} disabled={occupyMutation.isPending}>
                             Занять
                           </Button>
                         ) : (
-                          <Button size="sm" variant="secondary" onClick={() => handleQueue(slot.id)}>
+                          <Button size="sm" variant="secondary" className="w-full md:w-auto" onClick={() => handleQueue(slot.id)}>
                             В очередь{slot.queue_size > 0 && ` (${slot.queue_size})`}
                           </Button>
                         )}
