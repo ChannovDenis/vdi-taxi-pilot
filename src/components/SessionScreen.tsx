@@ -52,7 +52,8 @@ const SessionScreen = () => {
 
   // Get guacamole_url from query cache (set by DashboardScreen occupy mutation)
   const cachedOccupy = queryClient.getQueryData<OccupyData>(["occupy", slotId]);
-  const guacamoleUrl = cachedOccupy?.guacamole_url || `/guacamole/#/client/${slotId}`;
+  // Fallback: encode connection ID "1" as base64("1\0c\0postgresql") = "MQBjAHBvc3RncmVzcWw="
+  const guacamoleUrl = cachedOccupy?.guacamole_url || `/guacamole/#/client/MQBjAHBvc3RncmVzcWw=`;
 
   // Fetch slot info for name and timer
   const { data: slots = [] } = useQuery<SlotFromApi[]>({

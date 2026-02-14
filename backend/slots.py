@@ -1,15 +1,44 @@
 """Slots API: list, occupy, release."""
 
+import base64
+import logging
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from backend.config import settings
 from backend.database import get_db
 from backend.auth import get_current_user
 from backend.models import Slot, Session, User, QueueEntry
 from backend.websocket import broadcast_sync
+
+logger = logging.getLogger(__name__)
+
+# Guacamole connection ID for the shared VDI station.
+# All slots use the same RDP desktop for now (VDI-Station-1 = connection "1").
+_GUAC_CONNECTION_ID = "1"
+
+
+def _get_guacamole_token() -> str | None:
+    """Get a fresh Guacamole auth token (sync)."""
+    try:
+        url = f"{settings.guacamole_url}/api/tokens"
+        resp = httpx.post(
+            url,
+            data={
+                "username": settings.guacamole_admin_user,
+                "password": settings.guacamole_admin_pass,
+            },
+            timeout=5,
+        )
+        resp.raise_for_status()
+        return resp.json()["authToken"]
+    except Exception as exc:
+        logger.warning("Failed to get Guacamole token: %s", exc)
+        return None
 
 router = APIRouter(prefix="/slots", tags=["slots"])
 
@@ -99,8 +128,14 @@ def occupy_slot(
     db.commit()
     db.refresh(session)
 
-    # Build Guacamole URL — placeholder until Docker Guacamole is running
-    guac_url = f"/guacamole/#/client/{slot_id}"
+    # Build Guacamole client URL with proper base64-encoded connection ID.
+    # Format: /guacamole/#/client/{base64(connId \0 c \0 postgresql)}?token=...
+    raw = f"{_GUAC_CONNECTION_ID}\0c\0postgresql"
+    encoded = base64.b64encode(raw.encode()).decode()
+    token = _get_guacamole_token()
+    guac_url = f"/guacamole/#/client/{encoded}"
+    if token:
+        guac_url += f"?token={token}"
 
     # Broadcast to WebSocket clients
     broadcast_sync("slot_occupied", {
