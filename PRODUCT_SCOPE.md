@@ -577,6 +577,53 @@ WS     /api/ws/queue                → queue position updates + "slot freed" no
 
 ---
 
+## 6. ИСТОРИЯ ИЗМЕНЕНИЙ АРХИТЕКТУРЫ
+
+### v1.0 - Lovable Prototype (январь 2026)
+- Frontend-only React SPA с моковыми данными
+- Все данные захардкожены в компонентах
+- Навигация через useState (не URL)
+- Нет backend, нет auth, нет persistence
+
+### v2.0 - Backend + Auth (февраль 2026, Sprint 0-1)
+- FastAPI backend с 22 эндпоинтами
+- SQLite + SQLAlchemy
+- JWT + TOTP аутентификация
+- URL-навигация (react-router-dom)
+- React Query для data fetching
+- Бронирование, очереди, избранные через API
+
+### v3.0 - Guacamole VDI (февраль 2026, Sprint 2-4)
+- Apache Guacamole + guacd + PostgreSQL
+- VNC/RDP connections к shared VM (5 станций)
+- Telegram Bot (юзер + admin команды)
+- Session Dump (Chrome History + tabs + clipboard)
+- Docker Compose (5 сервисов)
+- Deploy на Timeweb Cloud VPS
+
+### v4.0 - Neko WebRTC (февраль 2026)
+
+**УДАЛЕНО:**
+- Apache Guacamole + guacd + PostgreSQL (для VDI)
+- VNC/RDP connections к shared VM
+
+**ДОБАВЛЕНО:**
+- 10 изолированных Neko WebRTC комнат (m1k1o/neko:chromium)
+- Каждый слот = отдельный Docker container
+- WebRTC вместо VNC (лучше latency, clipboard native)
+- Persistent Downloads mount для каждой комнаты
+- Custom Chrome policies (разрешены загрузки)
+- Vaultwarden (менеджер паролей для сервисов)
+
+**ПРИЧИНЫ МИГРАЦИИ:**
+- Экономия RAM (~700MB)
+- Лучшая изоляция (каждый слот = отдельный container vs shared VM)
+- Native clipboard support через WebRTC
+- Упрощение архитектуры (не нужен guacd + отдельная PostgreSQL)
+- Проще масштабирование (docker run = новая комната)
+
+---
+
 ## Приложение: Файловая карта
 
 ```

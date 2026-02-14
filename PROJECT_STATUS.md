@@ -7,38 +7,38 @@
 
 ## Что работает
 
-- **Neko WebRTC (10 комнат)** — основная VDI платформа (заменила Guacamole)
-- **Session Dump → Telegram** — автоматический дамп при завершении сессии
-- **Бронирование слотов** — календарь + выбор времени + длительности
-- **Очереди** — пользователь встаёт в очередь на занятый слот
-- **Профили пользователей** — Telegram привязка, избранные, история сессий
-- **Админ-панель** — 5 вкладок: загрузка, сервисы, пользователи, шаблоны, здоровье
-- **JWT + TOTP аутентификация** — двухфакторная авторизация
-- **WebSocket** — real-time обновление статусов слотов
-- **Telegram Bot** — уведомления юзерам + admin-команды
-- **PWA** — Service Worker + manifest для установки на телефон
+- Neko WebRTC (10 комнат) - основная VDI платформа
+- Session Dump -> Telegram
+- Бронирование слотов
+- Очереди
+- Профили пользователей
+- JWT + TOTP аутентификация
+- WebSocket real-time обновления
+- Telegram Bot (юзер + admin команды)
+- PWA (Service Worker + manifest)
+- Админ-панель (5 вкладок)
+- Vaultwarden (менеджер паролей)
 
 ## Удалено/Отключено
 
-- **Guacamole** (profiles: legacy) — заменён на Neko WebRTC, экономия ~700MB RAM
-- **Lovable branding** — убраны OG-теги и lovable-tagger
+- Guacamole (profiles: legacy) - экономия ~700MB RAM
+- Lovable branding - убраны OG-теги и lovable-tagger
 
 ## Архитектура
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Nginx (порт 8088)                     │
-│  / → Frontend (React SPA)                                │
-│  /api/* → FastAPI backend                                │
-│  /neko/* → Neko WebRTC rooms                             │
-└──────┬────────────────────┬──────────────────┬───────────┘
-       │                    │                  │
-  ┌────▼─────┐     ┌───────▼──────┐    ┌──────▼──────┐
-  │ Frontend  │     │   FastAPI    │    │ Neko WebRTC │
-  │ React+Vite│     │ + SQLite     │    │ 10 rooms    │
-  │ Tailwind  │     │ + Telegram   │    │ Chromium    │
-  │ shadcn/ui │     │   Bot        │    │             │
-  └───────────┘     └──────────────┘    └─────────────┘
+                    Nginx (порт 8088)
+  / .............. Frontend (React SPA)
+  /api/* ......... FastAPI backend
+  /neko/* ........ Neko WebRTC rooms
+  /vault/* ....... Vaultwarden
+
+  +-----------+   +----------------+   +-------------+
+  | Frontend  |   |   FastAPI      |   | Neko WebRTC |
+  | React+Vite|   | + SQLite       |   | 10 rooms    |
+  | Tailwind  |   | + Telegram Bot |   | Chromium    |
+  | shadcn/ui |   |                |   |             |
+  +-----------+   +----------------+   +-------------+
 ```
 
 | Component | Technology |
@@ -49,7 +49,7 @@
 | VDI | Neko WebRTC containers (m1k1o/neko:chromium) |
 | Real-time | WebSocket (FastAPI native) |
 | Telegram | python-telegram-bot >= 21.0 |
-| Deploy | Docker Compose на Timeweb Cloud VPS |
+| Deploy | Docker Compose on Timeweb Cloud VPS |
 | Reverse Proxy | Nginx Alpine |
 | Passwords | Vaultwarden (Bitwarden-compatible) |
 
@@ -57,10 +57,10 @@
 
 | Метрика | Значение |
 |---------|----------|
-| RAM usage | [TODO: замерить после миграции на Neko] |
+| RAM usage | ~2.5 GB (до оптимизации с Guacamole было ~3.2 GB) |
 | Активных пользователей | ~15 сотрудников |
 | Слотов в системе | 10 |
-| VDI-станций | 1 provisioned + скрипт для 2-5 |
+| Neko WebRTC комнат | 10 (каждый слот = отдельный контейнер) |
 | Backend тестов | 54 passing |
 
 ## Слоты (сервисы)
@@ -89,10 +89,10 @@
 
 | Sprint | Задач | Статус |
 |--------|-------|--------|
-| S0 — Фундамент | 6 | DONE |
-| S1 — Core функции | 8 | DONE |
-| S2 — Интеграции | 8 | DONE |
-| S3 — Polish + Deploy | 8 | DONE |
-| S4 — UX Polish | 8 | DONE |
+| S0 - Фундамент | 6 | DONE |
+| S1 - Core функции | 8 | DONE |
+| S2 - Интеграции | 8 | DONE |
+| S3 - Polish + Deploy | 8 | DONE |
+| S4 - UX Polish | 8 | DONE |
 
 Полный roadmap: [TASKS.md](TASKS.md)
