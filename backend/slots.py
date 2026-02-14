@@ -1,4 +1,4 @@
-"""Slots API: list, occupy, release."""
+"""Slots API: list, occupy, release, credentials."""
 
 import base64
 import logging
@@ -40,6 +40,7 @@ def _get_guacamole_token() -> str | None:
         logger.warning("Failed to get Guacamole token: %s", exc)
         return None
 
+
 router = APIRouter(prefix="/slots", tags=["slots"])
 
 
@@ -65,6 +66,15 @@ class OccupyResponse(BaseModel):
     guacamole_url: str
 
 
+class SlotCredentials(BaseModel):
+    """Service credentials for a slot (returned only to session occupant)."""
+    slot_id: str
+    service_name: str
+    url: str | None = None
+    login: str | None = None
+    password: str | None = None
+
+
 # ── Endpoints ──
 
 @router.get("", response_model=list[SlotOut])
@@ -84,9 +94,7 @@ def list_slots(db: DbSession = Depends(get_db), _user: User = Depends(get_curren
             occupant_name = active_session.user.name
             elapsed = datetime.now(timezone.utc) - active_session.started_at.replace(tzinfo=timezone.utc)
             session_minutes = int(elapsed.total_seconds() / 60)
-
         q_size = db.query(QueueEntry).filter(QueueEntry.slot_id == slot.id).count()
-
         result.append(SlotOut(
             id=slot.id,
             service_name=slot.service_name,
@@ -111,7 +119,6 @@ def occupy_slot(
     slot = db.query(Slot).filter(Slot.id == slot_id).first()
     if not slot:
         raise HTTPException(status_code=404, detail="Слот не найден")
-
     active = (
         db.query(Session)
         .filter(Session.slot_id == slot_id, Session.ended_at == None)
@@ -122,12 +129,10 @@ def occupy_slot(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Слот уже занят пользователем {active.user.name}",
         )
-
     session = Session(user_id=user.id, slot_id=slot_id)
     db.add(session)
     db.commit()
     db.refresh(session)
-
     # Build Guacamole client URL with proper base64-encoded connection ID.
     # Format: /guacamole/#/client/{base64(connId \0 c \0 postgresql)}?token=...
     raw = f"{_GUAC_CONNECTION_ID}\0c\0postgresql"
@@ -136,13 +141,11 @@ def occupy_slot(
     guac_url = f"/guacamole/#/client/{encoded}"
     if token:
         guac_url += f"?token={token}"
-
     # Broadcast to WebSocket clients
     broadcast_sync("slot_occupied", {
         "slot_id": slot_id,
         "occupant_name": user.name,
     })
-
     return OccupyResponse(
         session_id=session.id,
         slot_id=slot_id,
@@ -168,10 +171,8 @@ def release_slot(
     )
     if not active:
         raise HTTPException(status_code=404, detail="Нет активной сессии для этого слота")
-
     active.ended_at = datetime.now(timezone.utc)
     active.end_reason = "manual"
-
     # Notify first in queue (remove from queue — Telegram notification in S2-5)
     first_in_queue = (
         db.query(QueueEntry)
@@ -183,13 +184,46 @@ def release_slot(
     if first_in_queue:
         next_user_name = first_in_queue.user.name
         db.delete(first_in_queue)
-
     db.commit()
-
     # Broadcast to WebSocket clients
     broadcast_sync("slot_released", {
         "slot_id": slot_id,
         "next_in_queue": next_user_name,
     })
-
     return {"ok": True, "session_id": active.id, "next_in_queue": next_user_name}
+
+
+@router.get("/{slot_id}/credentials", response_model=SlotCredentials)
+def get_slot_credentials(
+    slot_id: str,
+    db: DbSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return service credentials for a slot.
+    Only the current occupant of the slot can access credentials.
+    """
+    slot = db.query(Slot).filter(Slot.id == slot_id).first()
+    if not slot:
+        raise HTTPException(status_code=404, detail="Слот не найден")
+    # Verify the user has an active session on this slot
+    active = (
+        db.query(Session)
+        .filter(
+            Session.slot_id == slot_id,
+            Session.ended_at == None,
+            Session.user_id == user.id,
+        )
+        .first()
+    )
+    if not active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Только текущий пользователь слота может видеть учётные данные",
+        )
+    return SlotCredentials(
+        slot_id=slot.id,
+        service_name=slot.service_name,
+        url=slot.url,
+        login=slot.login_encrypted,
+        password=slot.password_encrypted,
+    )
