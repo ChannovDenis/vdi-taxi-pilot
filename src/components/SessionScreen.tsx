@@ -23,13 +23,6 @@ interface SlotFromApi {
   session_minutes: number | null;
 }
 
-interface OccupyData {
-  session_id: number;
-  slot_id: string;
-  started_at: string;
-  guacamole_url: string;
-}
-
 function formatElapsed(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
@@ -50,10 +43,25 @@ const SessionScreen = () => {
   const [connectionFailed, setConnectionFailed] = useState(false);
   const iframeLoadCount = useRef(0);
 
-  // Get guacamole_url from query cache (set by DashboardScreen occupy mutation)
-  const cachedOccupy = queryClient.getQueryData<OccupyData>(["occupy", slotId]);
-  // Fallback: encode connection ID "1" as base64("1\0c\0postgresql") = "MQBjAHBvc3RncmVzcWw="
-  const guacamoleUrl = cachedOccupy?.guacamole_url || `/guacamole/#/client/MQBjAHBvc3RncmVzcWw=`;
+  // Fetch a fresh Guacamole auth token on every mount / reconnect
+  const [guacamoleUrl, setGuacamoleUrl] = useState<string | null>(null);
+  const [guacError, setGuacError] = useState<string | null>(null);
+
+  const fetchGuacToken = useCallback(async () => {
+    try {
+      setGuacError(null);
+      const data = await api.get<{ token: string; client_url: string }>(
+        `/slots/guacamole-token?slot_id=${encodeURIComponent(slotId ?? "ppx-1")}`,
+      );
+      setGuacamoleUrl(data.client_url);
+    } catch (err: any) {
+      setGuacError(err?.message || "Не удалось получить токен Guacamole");
+    }
+  }, [slotId]);
+
+  useEffect(() => {
+    fetchGuacToken();
+  }, [fetchGuacToken]);
 
   // Fetch slot info for name and timer
   const { data: slots = [] } = useQuery<SlotFromApi[]>({
@@ -141,13 +149,12 @@ const SessionScreen = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const handleReconnect = () => {
+  const handleReconnect = async () => {
     setDisconnected(false);
     setConnectionFailed(false);
     iframeLoadCount.current = 0;
-    if (iframeRef.current) {
-      iframeRef.current.src = guacamoleUrl;
-    }
+    // Get a fresh token before reconnecting
+    await fetchGuacToken();
   };
 
   return (
@@ -171,15 +178,33 @@ const SessionScreen = () => {
 
       {/* Guacamole iframe */}
       <div className="relative flex-1">
-        <iframe
-          ref={iframeRef}
-          src={guacamoleUrl}
-          title="VDI Remote Desktop"
-          className="absolute inset-0 h-full w-full border-0"
-          allow="clipboard-read; clipboard-write"
-          onLoad={handleIframeLoad}
-          onError={handleIframeError}
-        />
+        {guacamoleUrl ? (
+          <iframe
+            ref={iframeRef}
+            src={guacamoleUrl}
+            title="VDI Remote Desktop"
+            className="absolute inset-0 h-full w-full border-0"
+            allow="clipboard-read; clipboard-write"
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background">
+            {guacError ? (
+              <>
+                <AlertTriangle className="h-14 w-14 text-yellow-500 mb-4" />
+                <p className="text-lg font-semibold mb-2">Ошибка подключения</p>
+                <p className="text-sm text-muted-foreground mb-6 text-center max-w-md px-4">{guacError}</p>
+                <Button onClick={fetchGuacToken}>Попробовать снова</Button>
+              </>
+            ) : (
+              <>
+                <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-sm text-muted-foreground">Подключение к рабочему столу…</p>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Connection failed overlay — VDI not configured */}
         {connectionFailed && (

@@ -281,6 +281,19 @@ const DashboardScreen = () => {
     queueMutation.mutate(slotId);
   };
 
+  // Admin force-release mutation
+  const forceReleaseMutation = useMutation({
+    mutationFn: (slotId: string) => api.post<{ ok: boolean }>(`/slots/${slotId}/force-release`),
+    onSuccess: (_data, slotId) => {
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
+      const slotName = slots.find((s) => s.id === slotId)?.service_name ?? slotId;
+      toast({ title: "Слот освобождён", description: `${slotName} принудительно освобождён` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
+
   const handleBookingConfirm = () => {
     if (!bookingSlotId || !bookingDate) return;
     bookingMutation.mutate({
@@ -475,9 +488,22 @@ const DashboardScreen = () => {
                             Занять
                           </Button>
                         ) : (
-                          <Button size="sm" variant="secondary" className="w-full md:w-auto" onClick={() => handleQueue(slot.id)}>
-                            В очередь{slot.queue_size > 0 && ` (${slot.queue_size})`}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="secondary" className="w-full md:w-auto" onClick={() => handleQueue(slot.id)}>
+                              В очередь{slot.queue_size > 0 && ` (${slot.queue_size})`}
+                            </Button>
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="w-full md:w-auto"
+                                onClick={() => forceReleaseMutation.mutate(slot.id)}
+                                disabled={forceReleaseMutation.isPending}
+                              >
+                                Освободить
+                              </Button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
