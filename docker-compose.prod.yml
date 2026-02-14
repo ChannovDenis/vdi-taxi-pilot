@@ -103,8 +103,22 @@ services:
     profiles:
       - build
 
+  # --- Vaultwarden (Bitwarden-compatible password manager) ---
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    environment:
+      ADMIN_TOKEN: "vdi-taxi-vault-admin-2026"
+      DOMAIN: "http://194.87.134.161:8443"
+    volumes:
+      - vaultwarden-data:/data
+    ports:
+      - "8443:80"
+
 volumes:
   sqlite-data:
   guac-pg-data:
   dump-storage:
   frontend-build:
+  vaultwarden-data:
