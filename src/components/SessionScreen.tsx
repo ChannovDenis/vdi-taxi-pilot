@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Maximize2, Minimize2, WifiOff } from "lucide-react";
+import { Maximize2, Minimize2, WifiOff, AlertTriangle } from "lucide-react";
 
 interface SlotFromApi {
   id: string;
@@ -47,6 +47,8 @@ const SessionScreen = () => {
   const [elapsed, setElapsed] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [disconnected, setDisconnected] = useState(false);
+  const [connectionFailed, setConnectionFailed] = useState(false);
+  const iframeLoadCount = useRef(0);
 
   // Get guacamole_url from query cache (set by DashboardScreen occupy mutation)
   const cachedOccupy = queryClient.getQueryData<OccupyData>(["occupy", slotId]);
@@ -102,12 +104,46 @@ const SessionScreen = () => {
     return () => document.removeEventListener("fullscreenchange", onFsChange);
   }, []);
 
-  // Detect iframe disconnect (check if iframe loads or errors)
-  const handleIframeLoad = () => setDisconnected(false);
-  const handleIframeError = () => setDisconnected(true);
+  // Detect iframe disconnect and Guacamole connection errors
+  const handleIframeLoad = useCallback(() => {
+    setDisconnected(false);
+    iframeLoadCount.current += 1;
+    // Guacamole redirects to error page on connection failure, causing rapid reloads
+    // or showing its own error page. Detect by checking for rapid re-loads.
+    if (iframeLoadCount.current > 3) {
+      setConnectionFailed(true);
+      return;
+    }
+    // Also try to detect error page content (cross-origin safe check)
+    try {
+      const iframe = iframeRef.current;
+      if (iframe?.contentDocument) {
+        const body = iframe.contentDocument.body?.textContent || "";
+        if (body.includes("error") || body.includes("refused") || body.includes("not found")) {
+          setConnectionFailed(true);
+        }
+      }
+    } catch {
+      // Cross-origin — expected for Guacamole, ignore
+    }
+  }, []);
+
+  const handleIframeError = () => {
+    setConnectionFailed(true);
+  };
+
+  // Reset rapid-load counter every 10 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      iframeLoadCount.current = 0;
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleReconnect = () => {
     setDisconnected(false);
+    setConnectionFailed(false);
+    iframeLoadCount.current = 0;
     if (iframeRef.current) {
       iframeRef.current.src = guacamoleUrl;
     }
@@ -144,8 +180,24 @@ const SessionScreen = () => {
           onError={handleIframeError}
         />
 
-        {/* Disconnect overlay */}
-        {disconnected && (
+        {/* Connection failed overlay — VDI not configured */}
+        {connectionFailed && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 z-20">
+            <AlertTriangle className="h-14 w-14 text-yellow-500 mb-4" />
+            <p className="text-lg font-semibold mb-2">VM подключается...</p>
+            <p className="text-sm text-muted-foreground mb-6 text-center max-w-md px-4">
+              Если ошибка повторяется — VDI-станции ещё не настроены.
+              Обратитесь к администратору.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={handleReconnect}>Попробовать снова</Button>
+              <Button onClick={() => navigate("/dashboard")}>Вернуться на дашборд</Button>
+            </div>
+          </div>
+        )}
+
+        {/* Disconnect overlay — connection was active but lost */}
+        {disconnected && !connectionFailed && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 z-20">
             <WifiOff className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-lg font-medium mb-2">Соединение потеряно</p>
